@@ -13,3 +13,5 @@ In my day-to-day work with SharePoint, I very frequently use the venerable [Shar
 - Create user experience improvements such as easy filtering of search results, searching for properties, and build-in often used links like navigating to the result parent location, etc. 
 - Allow users to create multiple tenant profiles. 
 - Keeping sign-in persistent between sessions.
+<BR><BR>
+![Screenshot](/docs/screenshots/profiles-dark.png)
