@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Property table look shared by the Search Results page tabs and pop-out property windows. -->
+<ResourceDictionary
+    x:Class="SharePointSearchExplorer.Views.PropertyGridResources"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:h="using:SharePointSearchExplorer.Helpers"
+    xmlns:models="using:SharePointSearchExplorer.Models"
+    xmlns:tab="using:Microsoft.UI.Xaml.Controls.Tabular">
+
+    <!-- Subtle read-only table (the experimental WinUI TableView): column headers, horizontal row dividers, no
+         fills. Right-click a row to copy. -->
+    <Style x:Key="PropertyGridStyle" TargetType="tab:TableView">
+        <Setter Property="IsReadOnly" Value="True" />
+        <Setter Property="HeadersVisibility" Value="Column" />
+        <Setter Property="GridLinesVisibility" Value="Horizontal" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="RowBackground" Value="Transparent" />
+        <Setter Property="AlternatingRowBackground" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="SelectionMode" Value="Single" />
+        <!-- Only the Property column sorts (CanSort on the columns); see ColumnHeaderInfo.SortDescending. -->
+        <Setter Property="CanUserSortColumns" Value="True" />
+        <Setter Property="CanUserResizeColumns" Value="True" />
+        <Setter Property="Density" Value="Compact" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <!-- Table card: a quiet border around each table. No padding, so the column header text sits centred
+         in the header row (equal space above and below). -->
+    <Style x:Key="TableCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource OverlayCornerRadius}" />
+    </Style>
+
+    <!-- The columns' Header is the table's ColumnHeaderInfo; these are the columns' HeaderTemplates. -->
+
+    <!-- Header text: the Source header's look (see HeaderFilterButtonStyle), so every heading matches instead of
+         taking the TableView's larger default. -->
+    <Style x:Key="ColumnHeaderTextStyle" TargetType="TextBlock">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style x:Key="ColumnHeaderIconStyle" TargetType="FontIcon">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="FontFamily" Value="{StaticResource FluentIconsFont}" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <!-- Property column header: title, sort arrow, then the property count ("37 of 42 properties") in lighter
+         text. Clicking the header reverses the sort (the TableView's Sorting event, which is then cancelled). -->
+    <DataTemplate x:Key="CountColumnHeaderTemplate" x:DataType="models:ColumnHeaderInfo">
+        <StackPanel Background="Transparent" Orientation="Horizontal" Spacing="8" ToolTipService.ToolTip="{x:Bind SortTip, Mode=OneWay}">
+            <TextBlock Style="{StaticResource ColumnHeaderTextStyle}" Text="{x:Bind Title}" />
+            <FontIcon FontSize="12" Glyph="{x:Bind SortGlyph, Mode=OneWay}" Style="{StaticResource ColumnHeaderIconStyle}" />
+            <TextBlock
+                FontWeight="Normal"
+                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                Style="{StaticResource ColumnHeaderTextStyle}"
+                Text="{x:Bind Count, Mode=OneWay}" />
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- Source column header: a button that opens the source filter menu (see SourceFilter_Click). The negative
+         margin keeps its text in line with the cells below; a dot on the icon means a filter is active. -->
+    <Style x:Key="HeaderFilterButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="Margin" Value="-9,0,0,0" />
+    </Style>
+    <DataTemplate x:Key="SourceColumnHeaderTemplate" x:DataType="models:ColumnHeaderInfo">
+        <Button
+            AutomationProperties.Name="Filter by source"
+            Click="SourceFilter_Click"
+            Style="{StaticResource HeaderFilterButtonStyle}"
+            ToolTipService.ToolTip="Filter by source (managed or crawled property)">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="Source" />
+                <Grid VerticalAlignment="Center">
+                    <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="14" Glyph="{x:Bind h:FluentIcons.Filter}" />
+                    <InfoBadge
+                        Width="8"
+                        Height="8"
+                        Margin="0,-3,-4,0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Visibility="{x:Bind IsSourceFiltered, Mode=OneWay}" />
+                </Grid>
+            </StackPanel>
+        </Button>
+    </DataTemplate>
+
+    <!-- Value column header: the title and an info icon, with the table's help as their tooltip. -->
+    <x:String x:Key="PropertyTableHelp">Every managed and crawled property found on this item. SharePoint search does not return crawled property values, so crawled rows show their property set as the value. Click the Property header to reverse the sort, or the Source header to show only managed or crawled properties. Right-click a row to copy it.</x:String>
+    <DataTemplate x:Key="ValueColumnHeaderTemplate" x:DataType="x:String">
+        <StackPanel Background="Transparent" Orientation="Horizontal" Spacing="6" ToolTipService.ToolTip="{StaticResource PropertyTableHelp}">
+            <TextBlock Style="{StaticResource ColumnHeaderTextStyle}" Text="{x:Bind}" />
+            <FontIcon AutomationProperties.Name="About this table" Glyph="{x:Bind h:FluentIcons.Info}" Style="{StaticResource ColumnHeaderIconStyle}" />
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- Stacked column header (narrow table): the Property header, the Source filter button, then the info
+         icon of the Value header, which this layout has no column for. All centred on one line. -->
+    <DataTemplate x:Key="StackedColumnHeaderTemplate" x:DataType="models:ColumnHeaderInfo">
+        <StackPanel Orientation="Horizontal" Spacing="20">
+            <ContentPresenter VerticalAlignment="Center" Content="{x:Bind}" ContentTemplate="{StaticResource CountColumnHeaderTemplate}" />
+            <ContentPresenter VerticalAlignment="Center" Content="{x:Bind}" ContentTemplate="{StaticResource SourceColumnHeaderTemplate}" />
+            <Grid VerticalAlignment="Center" Background="Transparent" ToolTipService.ToolTip="{StaticResource PropertyTableHelp}">
+                <FontIcon AutomationProperties.Name="About this table" Glyph="{x:Bind h:FluentIcons.Info}" Style="{StaticResource ColumnHeaderIconStyle}" />
+            </Grid>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- Table cells: Consolas at 12px sets the data apart from the UI text; wrapping follows Settings > Appearance. -->
+    <DataTemplate x:Key="NameCellTemplate" x:DataType="models:PropertyEntry">
+        <TextBlock
+            Margin="12,7"
+            VerticalAlignment="Center"
+            FontFamily="Consolas"
+            FontSize="12"
+            MaxLines="{x:Bind h:DisplayOptions.Current.CellMaxLines, Mode=OneWay}"
+            Text="{x:Bind Name}"
+            TextTrimming="{x:Bind h:DisplayOptions.Current.Trimming, Mode=OneWay}"
+            TextWrapping="{x:Bind h:DisplayOptions.Current.Wrapping, Mode=OneWay}" />
+    </DataTemplate>
+    <DataTemplate x:Key="ValueCellTemplate" x:DataType="models:PropertyEntry">
+        <TextBlock
+            Margin="12,7"
+            VerticalAlignment="Center"
+            FontFamily="Consolas"
+            FontSize="12"
+            MaxLines="{x:Bind h:DisplayOptions.Current.CellMaxLines, Mode=OneWay}"
+            Text="{x:Bind Value}"
+            TextTrimming="{x:Bind h:DisplayOptions.Current.Trimming, Mode=OneWay}"
+            TextWrapping="{x:Bind h:DisplayOptions.Current.Wrapping, Mode=OneWay}" />
+    </DataTemplate>
+    <!-- Which list the row comes from (Managed or Crawled). -->
+    <DataTemplate x:Key="SourceCellTemplate" x:DataType="models:PropertyEntry">
+        <TextBlock
+            Margin="12,7"
+            VerticalAlignment="Center"
+            FontFamily="Consolas"
+            FontSize="12"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Text="{x:Bind Source}"
+            TextTrimming="CharacterEllipsis" />
+    </DataTemplate>
+
+    <!-- Stacked cell for a narrow table (see PropertyGridLayout), in a single column: the name with its source
+         beside it, then the value underneath. -->
+    <DataTemplate x:Key="StackedCellTemplate" x:DataType="models:PropertyEntry">
+        <Grid Margin="12,7" VerticalAlignment="Center" ColumnSpacing="12" RowSpacing="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBlock
+                FontFamily="Consolas"
+                FontSize="12"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                MaxLines="{x:Bind h:DisplayOptions.Current.CellMaxLines, Mode=OneWay}"
+                Text="{x:Bind Name}"
+                TextTrimming="{x:Bind h:DisplayOptions.Current.Trimming, Mode=OneWay}"
+                TextWrapping="{x:Bind h:DisplayOptions.Current.Wrapping, Mode=OneWay}" />
+            <TextBlock
+                Grid.Column="1"
+                FontFamily="Consolas"
+                FontSize="12"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="{x:Bind Source}" />
+            <TextBlock
+                Grid.Row="1"
+                Grid.ColumnSpan="2"
+                FontFamily="Consolas"
+                FontSize="12"
+                MaxLines="{x:Bind h:DisplayOptions.Current.CellMaxLines, Mode=OneWay}"
+                Text="{x:Bind Value}"
+                TextTrimming="{x:Bind h:DisplayOptions.Current.Trimming, Mode=OneWay}"
+                TextWrapping="{x:Bind h:DisplayOptions.Current.Wrapping, Mode=OneWay}" />
+        </Grid>
+    </DataTemplate>
+</ResourceDictionary>

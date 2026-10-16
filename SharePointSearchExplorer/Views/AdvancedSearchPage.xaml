@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SharePointSearchExplorer.Views.AdvancedSearchPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:h="using:SharePointSearchExplorer.Helpers"
+    NavigationCacheMode="Required">
+
+    <!-- The original tool's Query and Suggest settings. Top: the request URL, which can be edited directly.
+         Below: the Query and Suggest parameters side by side (their fields are created in code from
+         AdvancedRequest's parameter list). The query text is the query box in the title bar. The URL and the
+         fields update each other. -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Page title: smaller than the Settings pages' titles, as this page has much more below it. -->
+        <TextBlock Margin="24,16,24,4" Style="{StaticResource SubtitleTextBlockStyle}" Text="Advanced Query Rules" />
+
+        <!-- Only takes space while an error is shown (same as the Search Results page). -->
+        <InfoBar
+            Grid.Row="1"
+            Margin="24,8,24,0"
+            Closed="ErrorBar_Closed"
+            IconSource="{h:FluentIconSource Icon=ErrorCircle}"
+            IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
+            Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+            Severity="Error"
+            Title="Request failed"
+            Visibility="{x:Bind ViewModel.HasError, Mode=OneWay}" />
+
+        <!-- ===== Request URL ===== -->
+        <Grid Grid.Row="2" Padding="24,4,24,0" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <!-- Which request the URL is for. Editing a field in the other column switches too. -->
+                <StackPanel
+                    Margin="-4,0,0,0"
+                    AutomationProperties.Name="Request type"
+                    Orientation="Horizontal"
+                    Spacing="8">
+                    <RadioButton
+                        x:Name="QueryTab"
+                        Checked="ModeTab_Checked"
+                        Content="Query URL"
+                        GroupName="advancedMode"
+                        IsChecked="True"
+                        Style="{StaticResource UnderlineTabStyle}"
+                        Tag="Query" />
+                    <RadioButton
+                        x:Name="SuggestTab"
+                        Checked="ModeTab_Checked"
+                        Content="Suggest URL"
+                        GroupName="advancedMode"
+                        Style="{StaticResource UnderlineTabStyle}"
+                        Tag="Suggest" />
+                </StackPanel>
+                <TextBlock
+                    x:Name="UrlLengthText"
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Style="{StaticResource CaptionTextBlockStyle}" />
+            </Grid>
+
+            <!-- Wrapped in code at the box's width (see WrapUrl): the built-in wrapping only breaks a URL at a
+                 few characters, which leaves lines half empty. -->
+            <TextBox
+                x:Name="UrlBox"
+                Grid.Row="1"
+                Margin="0,8,0,0"
+                MinHeight="72"
+                MaxHeight="200"
+                AcceptsReturn="True"
+                AutomationProperties.Name="Request URL"
+                FontFamily="Consolas"
+                FontSize="13"
+                IsSpellCheckEnabled="False"
+                PreviewKeyDown="UrlBox_PreviewKeyDown"
+                ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                SizeChanged="UrlBox_SizeChanged"
+                TextChanged="UrlBox_TextChanged"
+                TextWrapping="NoWrap"
+                ToolTipService.ToolTip="The request that Run sends. Edit it here or with the fields below; each updates the other." />
+
+            <!-- What the last action did (e.g. "Saved to Query History"), left of the buttons. -->
+            <TextBlock
+                x:Name="ActionText"
+                Grid.Row="2"
+                VerticalAlignment="Center"
+                AutomationProperties.LiveSetting="Polite"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Style="{StaticResource CaptionTextBlockStyle}" />
+
+            <StackPanel Grid.Row="2" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
+                <Button
+                    x:Name="RunButton"
+                    Click="Run_Click"
+                    IsEnabled="{x:Bind IsNot(ViewModel.IsBusy), Mode=OneWay}"
+                    Style="{StaticResource AccentButtonStyle}"
+                    ToolTipService.ToolTip="Send the request (Enter in the URL box or the query box)">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="16" Glyph="{x:Bind h:FluentIcons.Search}" />
+                        <!-- "Run Query" or "Run Suggest", after the selected tab (see ShowMode). -->
+                        <TextBlock x:Name="RunButtonText" Text="Run Query" />
+                    </StackPanel>
+                </Button>
+                <Button Click="CopyUrl_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="16" Glyph="{x:Bind h:FluentIcons.Copy}" />
+                        <TextBlock Text="Copy URL" />
+                    </StackPanel>
+                </Button>
+                <Button Click="Save_Click" ToolTipService.ToolTip="Save this request to the Query History page, where Run again opens it here and runs it">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="16" Glyph="{x:Bind h:FluentIcons.Save}" />
+                        <TextBlock Text="Save query" />
+                    </StackPanel>
+                </Button>
+                <Button Click="Reset_Click" ToolTipService.ToolTip="Clear every field of this request (the query text stays)">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="16" Glyph="{x:Bind h:FluentIcons.ArrowReset}" />
+                        <TextBlock Text="Reset" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <!-- Divider between the request and its parameters: 16px above (with the row spacing) and below. -->
+            <Rectangle
+                Grid.Row="3"
+                Height="1"
+                Margin="0,8,0,0"
+                Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+        </Grid>
+
+        <!-- ===== Query and Suggest parameters: a card each, scrolling on its own ===== -->
+        <Grid Grid.Row="3" Padding="24,16,24,16" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Grid Padding="16,12,0,0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="{StaticResource OverlayCornerRadius}" RowSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <StackPanel Margin="0,0,16,0">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Query" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="Search results, from _api/search/query. Results open on the Search Results page." />
+                </StackPanel>
+                <!-- Right padding keeps the fields clear of the scroll bar. -->
+                <ScrollViewer Grid.Row="1" Padding="0,0,16,0">
+                    <StackPanel x:Name="QueryFields" Margin="0,0,0,16" Spacing="12" />
+                </ScrollViewer>
+            </Grid>
+
+            <Grid Grid.Column="1" Padding="16,12,0,0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="{StaticResource OverlayCornerRadius}" RowSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <StackPanel Margin="0,0,16,0">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Suggest" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="Query suggestions, from _api/search/suggest. Suggestions are listed below." />
+                </StackPanel>
+                <ScrollViewer Grid.Row="1" Padding="0,0,16,0">
+                    <StackPanel Margin="0,0,0,16" Spacing="12">
+                        <StackPanel x:Name="SuggestFields" Spacing="12" />
+                        <TextBlock
+                            x:Name="ResultText"
+                            Margin="0,8,0,0"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="Run a suggest request to see its suggestions here."
+                            TextWrapping="Wrap" />
+                        <ListView
+                            x:Name="SuggestionList"
+                            AutomationProperties.Name="Suggestions"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource ControlCornerRadius}"
+                            SelectionMode="None"
+                            Visibility="Collapsed" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <ProgressBar
+            Grid.RowSpan="4"
+            VerticalAlignment="Top"
+            IsIndeterminate="True"
+            Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
+    </Grid>
+</Page>

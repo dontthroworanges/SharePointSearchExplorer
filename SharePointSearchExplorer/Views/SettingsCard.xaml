@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="SharePointSearchExplorer.Views.SettingsCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- A Windows 11 Settings-style row: icon, header and description on the left, control on the right.
+         When the text would get too narrow, the control moves below it (see UpdateLayoutMode). -->
+    <Grid
+        x:Name="CardRoot"
+        MinHeight="68"
+        Padding="16,12"
+        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+        BorderThickness="1"
+        ColumnSpacing="16"
+        CornerRadius="{StaticResource ControlCornerRadius}"
+        SizeChanged="CardRoot_SizeChanged">
+        <!-- Hover and press fills of a clickable card (see IsClickEnabled). -->
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="ClickStates">
+                <VisualState x:Name="ClickNormal" />
+                <VisualState x:Name="ClickPointerOver">
+                    <VisualState.Setters>
+                        <Setter Target="CardRoot.Background" Value="{ThemeResource ControlFillColorSecondaryBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="ClickPressed">
+                    <VisualState.Setters>
+                        <Setter Target="CardRoot.Background" Value="{ThemeResource ControlFillColorTertiaryBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <!-- A disabled card greys its icon and text, like Windows Settings (the control greys itself). -->
+            <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal" />
+                <VisualState x:Name="Disabled">
+                    <VisualState.Setters>
+                        <Setter Target="CardIcon.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}" />
+                        <Setter Target="HeaderText.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}" />
+                        <Setter Target="DescriptionText.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}" />
+                        <Setter Target="ToggleStateText.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <FontIcon
+            x:Name="CardIcon"
+            VerticalAlignment="Center"
+            FontFamily="{StaticResource FluentIconsFont}"
+            FontSize="20"
+            Glyph="{x:Bind Glyph, Mode=OneWay}" />
+
+        <!-- Left-aligned so the text only covers its own width: the selectable description would otherwise
+             stretch across the card and swallow clicks meant for a clickable card. -->
+        <StackPanel Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Spacing="2">
+            <TextBlock x:Name="HeaderText" Text="{x:Bind Header, Mode=OneWay}" TextWrapping="Wrap" />
+            <TextBlock
+                x:Name="DescriptionText"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                IsTextSelectionEnabled="True"
+                Style="{StaticResource CaptionTextBlockStyle}"
+                Text="{x:Bind Description, Mode=OneWay}"
+                TextWrapping="Wrap"
+                Visibility="{x:Bind HasDescription(Description), Mode=OneWay}" />
+        </StackPanel>
+
+        <!-- Toggle switches show their On/Off text here, left of the switch, so the switch sits on the right edge. -->
+        <StackPanel
+            x:Name="ActionPanel"
+            Grid.Column="2"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Center"
+            Orientation="Horizontal"
+            Spacing="12">
+            <TextBlock x:Name="ToggleStateText" VerticalAlignment="Center" Visibility="Collapsed" />
+            <ContentPresenter VerticalAlignment="Center" Content="{x:Bind Action, Mode=OneWay}" />
+            <!-- A clickable card opens a sub-page, like Windows Settings. -->
+            <FontIcon
+                x:Name="ChevronIcon"
+                VerticalAlignment="Center"
+                FontFamily="{StaticResource FluentIconsFont}"
+                FontSize="16"
+                Glyph="&#xF2B0;"
+                Visibility="{x:Bind IsClickEnabled, Mode=OneWay}" />
+        </StackPanel>
+    </Grid>
+</UserControl>

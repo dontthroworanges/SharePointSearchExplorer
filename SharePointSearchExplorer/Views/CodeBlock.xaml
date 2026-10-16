@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="SharePointSearchExplorer.Views.CodeBlock"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:h="using:SharePointSearchExplorer.Helpers">
+
+    <!-- Read-only, selectable monospace text on a card, with a centred placeholder while there is no text.
+         A TextBlock (rather than a read-only TextBox) so that search matches can be highlighted (see Find).
+         Long lines scroll sideways, or wrap when Settings > Appearance > Word Wrap > Server Response is on. -->
+    <Border
+        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+        BorderThickness="1"
+        CornerRadius="{StaticResource OverlayCornerRadius}">
+        <Grid>
+            <ScrollViewer
+                x:Name="Scroller"
+                HorizontalScrollBarVisibility="{x:Bind h:DisplayOptions.Current.CodeHorizontalScrollBar, Mode=OneWay}"
+                HorizontalScrollMode="{x:Bind h:DisplayOptions.Current.CodeHorizontalScrollMode, Mode=OneWay}"
+                VerticalScrollBarVisibility="Auto"
+                Visibility="Collapsed">
+                <TextBlock
+                    x:Name="CodeText"
+                    Padding="16,12"
+                    AutomationProperties.Name="Code"
+                    FontFamily="Cascadia Mono, Consolas"
+                    FontSize="13"
+                    IsTextSelectionEnabled="True"
+                    TextWrapping="{x:Bind h:DisplayOptions.Current.CodeWrapping, Mode=OneWay}" />
+            </ScrollViewer>
+            <TextBlock
+                x:Name="Placeholder"
+                Margin="24"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                TextAlignment="Center"
+                TextWrapping="Wrap" />
+        </Grid>
+    </Border>
+</UserControl>

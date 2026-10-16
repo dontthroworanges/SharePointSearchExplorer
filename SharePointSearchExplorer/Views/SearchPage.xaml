@@ -1,0 +1,506 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SharePointSearchExplorer.Views.SearchPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:tab="using:Microsoft.UI.Xaml.Controls.Tabular"
+    xmlns:h="using:SharePointSearchExplorer.Helpers"
+    xmlns:models="using:SharePointSearchExplorer.Models"
+    xmlns:views="using:SharePointSearchExplorer.Views"
+    NavigationCacheMode="Required">
+
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <views:PropertyGridResources />
+            </ResourceDictionary.MergedDictionaries>
+            <!-- The results list's source while grouped (see UpdateResultsSource). -->
+            <CollectionViewSource x:Name="GroupedResults" IsSourceGrouped="True" />
+            <!-- Actions for a result: its right-click menu in the Primary Results list (see ResultsList_ContextRequested)
+                 and the Result options button beside the title in Result Details (see ResultOptions_Click). -->
+            <MenuFlyout x:Name="ResultMenu">
+                <MenuFlyoutItem
+                    x:Name="OpenItem"
+                    Click="Open_Click"
+                    Icon="{h:FluentIcon Icon=Open}"
+                    Text="Open Result"
+                    ToolTipService.ToolTip="Open in the SharePoint viewer (SPWebUrl/_layouts/15/viewer.aspx?sourcedoc=UniqueId)" />
+                <MenuFlyoutItem
+                    x:Name="OpenParentItem"
+                    Click="OpenParent_Click"
+                    Icon="{h:FluentIcon Icon=FolderOpen}"
+                    Text="Open Parent Location"
+                    ToolTipService.ToolTip="Open the location in the ParentLink property" />
+                <MenuFlyoutItem Click="CopyLink_Click" Icon="{h:FluentIcon Icon=Link}" Text="Copy link" />
+            </MenuFlyout>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="340" MinWidth="260" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Only takes space while an error is shown, so the panes sit flush under the title bar. -->
+        <InfoBar
+            Grid.ColumnSpan="2"
+            Margin="12,8,12,8"
+            Closed="ErrorBar_Closed"
+            IconSource="{h:FluentIconSource Icon=ErrorCircle}"
+            IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
+            Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+            Severity="Error"
+            Title="Search failed"
+            Visibility="{x:Bind ViewModel.HasError, Mode=OneWay}" />
+
+        <!-- ===== Primary results pane ===== -->
+        <Grid
+            Grid.Row="1"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="0,0,1,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid Padding="16,6,8,6" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Primary Results" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+                        TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+
+                <!-- Filter: FileType refiner -->
+                <Button
+                    x:Name="FilterButton"
+                    Grid.Column="1"
+                    AutomationProperties.Name="Filter"
+                    Style="{StaticResource IconButtonStyle}"
+                    ToolTipService.ToolTip="Filter by file type">
+                    <Grid>
+                        <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="18" Glyph="{x:Bind h:FluentIcons.Filter}" />
+                        <InfoBadge
+                            Width="8"
+                            Height="8"
+                            Margin="0,-3,-4,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Visibility="{x:Bind ViewModel.IsFilterActive, Mode=OneWay}" />
+                    </Grid>
+                    <Button.Flyout>
+                        <Flyout x:Name="FilterFlyout" Placement="BottomEdgeAlignedRight">
+                            <StackPanel Width="260" Spacing="8">
+                                <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="File type" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="Run a search to see file types."
+                                    TextWrapping="Wrap"
+                                    Visibility="{x:Bind IsEmpty(ViewModel.FileTypeOptions.Count), Mode=OneWay}" />
+                                <ScrollViewer MaxHeight="320">
+                                    <ItemsRepeater ItemsSource="{x:Bind ViewModel.FileTypeOptions}">
+                                        <ItemsRepeater.ItemTemplate>
+                                            <DataTemplate x:DataType="models:RefinerOption">
+                                                <CheckBox Content="{x:Bind Label}" IsChecked="{x:Bind IsSelected, Mode=TwoWay}" />
+                                            </DataTemplate>
+                                        </ItemsRepeater.ItemTemplate>
+                                    </ItemsRepeater>
+                                </ScrollViewer>
+                                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
+                                    <Button Click="ClearFilter_Click">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="16" Glyph="{x:Bind h:FluentIcons.FilterDismiss}" />
+                                            <TextBlock Text="Clear" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Click="ApplyFilter_Click" Content="Apply" Style="{StaticResource AccentButtonStyle}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+
+                <!-- Sort -->
+                <Button
+                    Grid.Column="2"
+                    AutomationProperties.Name="Sort"
+                    Style="{StaticResource IconButtonStyle}"
+                    ToolTipService.ToolTip="Sort">
+                    <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="18" Glyph="{x:Bind h:FluentIcons.ArrowSort}" />
+                    <Button.Flyout>
+                        <MenuFlyout x:Name="SortFlyout" Opening="SortFlyout_Opening" Placement="BottomEdgeAlignedRight">
+                            <RadioMenuFlyoutItem Click="Sort_Click" GroupName="sort" Tag="Relevance" Text="Relevance" />
+                            <RadioMenuFlyoutItem Click="Sort_Click" GroupName="sort" Tag="NewestFirst" Text="Last modified (newest)" />
+                            <RadioMenuFlyoutItem Click="Sort_Click" GroupName="sort" Tag="OldestFirst" Text="Last modified (oldest)" />
+                            <RadioMenuFlyoutItem Click="Sort_Click" GroupName="sort" Tag="LargestFirst" Text="Size (largest)" />
+                            <RadioMenuFlyoutItem Click="Sort_Click" GroupName="sort" Tag="SmallestFirst" Text="Size (smallest)" />
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+
+                <!-- Group by a Result Details property -->
+                <Button
+                    Grid.Column="3"
+                    AutomationProperties.Name="Group"
+                    Style="{StaticResource IconButtonStyle}"
+                    ToolTipService.ToolTip="Group by">
+                    <Grid>
+                        <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="18" Glyph="{x:Bind h:FluentIcons.GroupList}" />
+                        <InfoBadge
+                            Width="8"
+                            Height="8"
+                            Margin="0,-3,-4,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Visibility="{x:Bind ViewModel.IsGrouped, Mode=OneWay}" />
+                    </Grid>
+                    <Button.Flyout>
+                        <MenuFlyout x:Name="GroupFlyout" Opening="GroupFlyout_Opening" Placement="BottomEdgeAlignedRight">
+                            <RadioMenuFlyoutItem Click="Group_Click" GroupName="group" Tag="None" Text="None" />
+                            <MenuFlyoutSeparator />
+                            <RadioMenuFlyoutItem Click="Group_Click" GroupName="group" Tag="Type" Text="Type" />
+                            <RadioMenuFlyoutItem Click="Group_Click" GroupName="group" Tag="FileType" Text="File type" />
+                            <RadioMenuFlyoutItem Click="Group_Click" GroupName="group" Tag="Author" Text="Author" />
+                            <RadioMenuFlyoutItem Click="Group_Click" GroupName="group" Tag="ModifiedBy" Text="Modified by" />
+                            <RadioMenuFlyoutItem Click="Group_Click" GroupName="group" Tag="LastModified" Text="Last modified" />
+                            <RadioMenuFlyoutItem Click="Group_Click" GroupName="group" Tag="Created" Text="Created" />
+                            <RadioMenuFlyoutItem Click="Group_Click" GroupName="group" Tag="Size" Text="Size" />
+                            <RadioMenuFlyoutItem Click="Group_Click" GroupName="group" Tag="Site" Text="Site" />
+                            <RadioMenuFlyoutItem Click="Group_Click" GroupName="group" Tag="ContentClass" Text="Content class" />
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+            </Grid>
+
+            <!-- ItemsSource is the flat results or GroupedResults, set in code (see UpdateResultsSource). -->
+            <ListView
+                x:Name="ResultsList"
+                Grid.Row="1"
+                Padding="0,4"
+                ContextRequested="ResultsList_ContextRequested"
+                IsSynchronizedWithCurrentItem="False"
+                SelectedItem="{x:Bind ViewModel.SelectedResult, Mode=OneWay}"
+                SelectionChanged="ResultsList_SelectionChanged"
+                SelectionMode="Single">
+                <!-- No minimum row height, so Dense rows can be shorter than the default 40px. -->
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                        <Setter Property="MinHeight" Value="0" />
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.GroupStyle>
+                    <GroupStyle>
+                        <GroupStyle.HeaderTemplate>
+                            <DataTemplate x:DataType="models:ResultGroup">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Style="{StaticResource BodyTextBlockStyle}"
+                                        Text="{x:Bind CountText}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </GroupStyle.HeaderTemplate>
+                    </GroupStyle>
+                </ListView.GroupStyle>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="models:SearchResultItem">
+                        <!-- Comfortable: icon, title and last modified. Dense (Settings > Appearance): icon and title in shorter rows.
+                             The icon is 20px in both, like the Result Details card (see DisplayOptions.ResultIconSize). -->
+                        <Grid
+                            Padding="{x:Bind h:DisplayOptions.Current.ResultPadding, Mode=OneWay}"
+                            ColumnSpacing="{x:Bind h:DisplayOptions.Current.ResultColumnSpacing, Mode=OneWay}"
+                            ToolTipService.ToolTip="{x:Bind Path}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <!-- Outline glyph or colourful file type icon, per Settings > Appearance > Result icons. -->
+                            <Grid
+                                Width="{x:Bind h:DisplayOptions.Current.ResultIconSize, Mode=OneWay}"
+                                Height="{x:Bind h:DisplayOptions.Current.ResultIconSize, Mode=OneWay}"
+                                VerticalAlignment="Center"
+                                AutomationProperties.Name="{x:Bind TypeLabel}"
+                                ToolTipService.ToolTip="{x:Bind TypeLabel}">
+                                <FontIcon
+                                    FontFamily="{StaticResource FluentIconsFont}"
+                                    FontSize="{x:Bind h:DisplayOptions.Current.ResultGlyphSize, Mode=OneWay}"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Glyph="{x:Bind Glyph}"
+                                    Visibility="{x:Bind views:SearchPage.ShowGlyph(FileTypeIcon, h:DisplayOptions.Current.UseFileTypeIcons), Mode=OneWay}" />
+                                <Image
+                                    Width="{x:Bind h:DisplayOptions.Current.ResultIconSize, Mode=OneWay}"
+                                    Height="{x:Bind h:DisplayOptions.Current.ResultIconSize, Mode=OneWay}"
+                                    Source="{x:Bind views:SearchPage.FileTypeImage(FileTypeIcon, h:DisplayOptions.Current.UseFileTypeIcons), Mode=OneWay}"
+                                    Visibility="{x:Bind views:SearchPage.ShowFileTypeImage(FileTypeIcon, h:DisplayOptions.Current.UseFileTypeIcons), Mode=OneWay}" />
+                            </Grid>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock
+                                    MaxLines="{x:Bind h:DisplayOptions.Current.TitleMaxLines, Mode=OneWay}"
+                                    Text="{x:Bind Title}"
+                                    TextTrimming="CharacterEllipsis"
+                                    TextWrapping="{x:Bind h:DisplayOptions.Current.Wrapping, Mode=OneWay}" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                    Text="{x:Bind LastModifiedText}"
+                                    Visibility="{x:Bind h:DisplayOptions.Current.LastModifiedVisibility, Mode=OneWay}" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+                <ListView.Footer>
+                    <Button
+                        Margin="12,8,12,16"
+                        HorizontalAlignment="Stretch"
+                        Click="LoadMore_Click"
+                        Content="Load more results"
+                        IsEnabled="{x:Bind IsNot(ViewModel.IsBusy), Mode=OneWay}"
+                        Visibility="{x:Bind ViewModel.HasMoreResults, Mode=OneWay}" />
+                </ListView.Footer>
+            </ListView>
+
+            <StackPanel
+                Grid.Row="1"
+                Margin="24"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="12"
+                Visibility="{x:Bind ViewModel.ShowEmptyState, Mode=OneWay}">
+                <FontIcon
+                    FontFamily="{StaticResource FluentIconsFont}"
+                    FontSize="36"
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                    Glyph="{x:Bind h:FluentIcons.DatabaseSearch}" />
+                <TextBlock
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind ViewModel.EmptyStateText, Mode=OneWay}"
+                    TextAlignment="Center"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+
+            <ProgressBar
+                Grid.Row="0"
+                Grid.RowSpan="2"
+                VerticalAlignment="Top"
+                IsIndeterminate="True"
+                Visibility="{x:Bind ViewModel.IsBusy, Mode=OneWay}" />
+        </Grid>
+
+        <!-- ===== Detail pane ===== -->
+        <!-- No right padding here: the 24px gutter is added per child, so DetailScroller's scroll bar sits in it. -->
+        <Grid Grid.Row="1" Grid.Column="1" Padding="24,16,0,16">
+            <TextBlock
+                Margin="0,0,24,0"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="Select a result to see its details."
+                Visibility="{x:Bind ViewModel.ShowNoSelection, Mode=OneWay}" />
+
+            <!-- Scrolls only while the table is stacked (narrow pane, see DetailScroller_SizeChanged): the summary
+                 and filter bar can then take most of the height, so the whole pane scrolls and the table is capped
+                 at the pane's height. Otherwise scrolling is off and the table fills the space left over. -->
+            <ScrollViewer
+                x:Name="DetailScroller"
+                Padding="0,0,24,0"
+                SizeChanged="DetailScroller_SizeChanged"
+                VerticalScrollBarVisibility="Disabled"
+                Visibility="{x:Bind ViewModel.HasSelection, Mode=OneWay}">
+
+                <!-- Result Details: summary card, then a filterable table of the item's managed and crawled properties. -->
+                <Grid RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Collapsible summary, like a Windows Settings expander: icon and title in the header; the
+                         favorite properties (the full list is in the table below) in the body, aligned with the icon. -->
+                    <Expander
+                        x:Name="SummaryExpander"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Stretch"
+                        IsExpanded="True">
+                        <Expander.Header>
+                            <Grid Padding="0,12" ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <!-- Same icon as the results list (outline or colour, per Settings > Appearance > Result icons). -->
+                                <Grid
+                                    Width="20"
+                                    Height="20"
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.Name="{x:Bind ViewModel.SelectedResult.TypeLabel, Mode=OneWay, FallbackValue=''}"
+                                    ToolTipService.ToolTip="{x:Bind ViewModel.SelectedResult.TypeLabel, Mode=OneWay, FallbackValue=''}">
+                                    <FontIcon
+                                        FontFamily="{StaticResource FluentIconsFont}"
+                                        FontSize="20"
+                                        Glyph="{x:Bind ViewModel.SelectedResult.Glyph, Mode=OneWay, FallbackValue=''}"
+                                        Visibility="{x:Bind views:SearchPage.ShowGlyph(ViewModel.SelectedResult.FileTypeIcon, h:DisplayOptions.Current.UseFileTypeIcons), Mode=OneWay, FallbackValue=Visible}" />
+                                    <Image
+                                        Width="20"
+                                        Height="20"
+                                        Source="{x:Bind views:SearchPage.FileTypeImage(ViewModel.SelectedResult.FileTypeIcon, h:DisplayOptions.Current.UseFileTypeIcons), Mode=OneWay, FallbackValue={x:Null}}"
+                                        Visibility="{x:Bind views:SearchPage.ShowFileTypeImage(ViewModel.SelectedResult.FileTypeIcon, h:DisplayOptions.Current.UseFileTypeIcons), Mode=OneWay, FallbackValue=Collapsed}" />
+                                </Grid>
+                                <!-- The item's URL is in the table below (Path) and in the results list tooltip. -->
+                                <TextBlock
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    IsTextSelectionEnabled="True"
+                                    Text="{x:Bind ViewModel.SelectedResult.Title, Mode=OneWay, FallbackValue=''}"
+                                    TextWrapping="Wrap" />
+                                <!-- The selected result's actions: the same menu as a right-click in Primary Results. -->
+                                <Button
+                                    Grid.Column="2"
+                                    VerticalAlignment="Center"
+                                    Click="ResultOptions_Click"
+                                    Content="Result Options" />
+                            </Grid>
+                        </Expander.Header>
+
+                        <!-- The header and the body both have 16px of left padding, so with no margin the facts line up
+                             under the icon. -->
+                        <Grid>
+                        <!-- Shown instead of the facts when every favorite property has been removed: a link (in
+                             the app's accent colour) to Settings > Search > Favorite properties. The negative margin
+                             lines the icon up with the header's icon despite the button's padding. -->
+                        <HyperlinkButton
+                            Margin="-12,-4,0,-4"
+                            Click="AddFavorites_Click"
+                            Visibility="{x:Bind ViewModel.HasNoFavorites, Mode=OneWay}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="16" Glyph="{x:Bind h:FluentIcons.Info}" />
+                                <TextBlock Text="Add favorite properties to this section in Search Settings." TextWrapping="Wrap" />
+                            </StackPanel>
+                        </HyperlinkButton>
+                        <!-- The favorite properties chosen in Settings > Search > Favorite properties. -->
+                        <ItemsRepeater ItemsSource="{x:Bind ViewModel.SummaryFacts}">
+                            <ItemsRepeater.Layout>
+                                <UniformGridLayout
+                                    ItemsStretch="Fill"
+                                    MinColumnSpacing="24"
+                                    MinItemWidth="170"
+                                    MinRowSpacing="10" />
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:PropertyEntry">
+                                    <!-- Right-click to copy, like the table's rows. The fact is in Tag because an
+                                         ItemsRepeater doesn't set the DataContext of an x:Bind template. -->
+                                    <StackPanel Background="Transparent" ContextRequested="PropertyRow_ContextRequested" Tag="{x:Bind}">
+                                        <TextBlock
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Text="{x:Bind Name}" />
+                                        <TextBlock
+                                            Text="{x:Bind views:SearchPage.FactText(Value)}"
+                                            TextTrimming="CharacterEllipsis"
+                                            ToolTipService.ToolTip="{x:Bind views:SearchPage.FactTip(Value)}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                        </Grid>
+                    </Expander>
+
+                    <!-- Filter bar. The filter box's column is weighted far above the spacer's, so the box keeps its
+                         360px until the spacer is used up. -->
+                    <Grid x:Name="PropertiesFilterBar" Grid.Row="1" Margin="0,8,0,0" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1000*" MaxWidth="360" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox
+                            VerticalAlignment="Center"
+                            AutomationProperties.Name="Filter properties"
+                            PlaceholderText="Filter properties"
+                            Text="{x:Bind ViewModel.PropertyFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <CommandBar Grid.Column="2" Background="Transparent" DefaultLabelPosition="Right" OverflowButtonVisibility="Collapsed">
+                            <!-- Show/hide empty: labelled with what a click does. -->
+                            <AppBarButton
+                                Click="ToggleEmpty_Click"
+                                Label="{x:Bind views:SearchPage.EmptyToggleLabel(ViewModel.ShowEmptyProperties), Mode=OneWay}"
+                                ToolTipService.ToolTip="{x:Bind views:SearchPage.EmptyToggleTip(ViewModel.ShowEmptyProperties), Mode=OneWay}">
+                                <AppBarButton.Icon>
+                                    <FontIcon FontFamily="{StaticResource FluentIconsFont}" Glyph="{x:Bind views:SearchPage.EmptyToggleGlyph(ViewModel.ShowEmptyProperties), Mode=OneWay}" />
+                                </AppBarButton.Icon>
+                            </AppBarButton>
+                            <AppBarButton Click="CopyProperties_Click" Icon="{h:FluentIcon Icon=Copy}" Label="Copy all" />
+                            <AppBarButton Click="ReloadProperties_Click" Icon="{h:FluentIcon Icon=ArrowClockwise}" Label="Reload" />
+                            <AppBarButton
+                                Click="PopOut_Click"
+                                Icon="{h:FluentIcon Icon=WindowNew}"
+                                IsEnabled="{x:Bind IsNot(ViewModel.IsLoadingProperties), Mode=OneWay}"
+                                Label="Pop-Out"
+                                ToolTipService.ToolTip="Open this table in its own window" />
+                        </CommandBar>
+                    </Grid>
+                    <!-- The warning shares the table's row and is collapsed while closed (a closed InfoBar still
+                         takes its margin), so it adds no space above the table. -->
+                    <Grid Grid.Row="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <InfoBar
+                        Margin="0,0,0,8"
+                        IconSource="{h:FluentIconSource Icon=Warning}"
+                        IsClosable="False"
+                        IsOpen="{x:Bind ViewModel.HasPropertiesError, Mode=OneWay}"
+                        Message="{x:Bind ViewModel.PropertiesError, Mode=OneWay}"
+                        Severity="Warning"
+                        Visibility="{x:Bind ViewModel.HasPropertiesError, Mode=OneWay}" />
+                    <Border Grid.Row="1" Style="{StaticResource TableCardStyle}">
+                        <tab:TableView
+                            x:Name="PropertiesGrid"
+                            AutomationProperties.Name="Properties"
+                            ContextRequested="PropertyRow_ContextRequested"
+                            ItemsSource="{x:Bind ViewModel.VisibleProperties}"
+                            Sorting="PropertiesGrid_Sorting"
+                            Style="{StaticResource PropertyGridStyle}">
+                            <!-- Every header is ViewModel.PropertiesHeader, set in code. The last column replaces the
+                                 others while the pane is narrow (see PropertyGridLayout). -->
+                            <tab:TableView.Columns>
+                                <tab:TableViewTemplateColumn x:Name="PropertyNameColumn" Width="320" CanSort="True" SortMemberPath="Name" CellTemplate="{StaticResource NameCellTemplate}" HeaderTemplate="{StaticResource CountColumnHeaderTemplate}" />
+                                <tab:TableViewTemplateColumn x:Name="PropertySourceColumn" Width="110" CanSort="False" CellTemplate="{StaticResource SourceCellTemplate}" HeaderTemplate="{StaticResource SourceColumnHeaderTemplate}" />
+                                <tab:TableViewTemplateColumn Width="*" CanSort="False" CellTemplate="{StaticResource ValueCellTemplate}" Header="Value" HeaderTemplate="{StaticResource ValueColumnHeaderTemplate}" />
+                                <tab:TableViewTemplateColumn x:Name="PropertyStackedColumn" Width="*" CanResize="False" CanSort="True" SortMemberPath="Name" CellTemplate="{StaticResource StackedCellTemplate}" HeaderTemplate="{StaticResource StackedColumnHeaderTemplate}" Visibility="Collapsed" />
+                            </tab:TableView.Columns>
+                        </tab:TableView>
+                    </Border>
+                    <StackPanel
+                        Grid.Row="1"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        IsHitTestVisible="False"
+                        Spacing="8"
+                        Visibility="{x:Bind ViewModel.IsLoadingProperties, Mode=OneWay}">
+                        <ProgressRing IsActive="{x:Bind ViewModel.IsLoadingProperties, Mode=OneWay}" />
+                        <TextBlock HorizontalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Getting Properties..." />
+                    </StackPanel>
+                    </Grid>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Page>

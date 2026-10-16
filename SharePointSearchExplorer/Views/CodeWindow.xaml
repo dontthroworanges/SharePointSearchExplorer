@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="SharePointSearchExplorer.Views.CodeWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:h="using:SharePointSearchExplorer.Helpers"
+    xmlns:views="using:SharePointSearchExplorer.Views">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <!-- A detached copy of one Server Response tab: fixed to the search it was opened from. -->
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TitleBar x:Name="WindowTitleBar" Height="48" IsBackButtonVisible="False" IsPaneToggleButtonVisible="False">
+            <TitleBar.LeftHeader>
+                <Image Width="20" Height="20" Margin="16,0,0,0" Source="ms-appx:///Assets/AppIcon.png" />
+            </TitleBar.LeftHeader>
+        </TitleBar>
+
+        <!-- The request this text came from. -->
+        <TextBlock
+            x:Name="RequestText"
+            Grid.Row="1"
+            Margin="24,4,24,0"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            IsTextSelectionEnabled="True"
+            MaxLines="3"
+            Style="{StaticResource CaptionTextBlockStyle}"
+            TextTrimming="CharacterEllipsis"
+            TextWrapping="Wrap" />
+
+        <!-- Search box on the left, Copy on the right. -->
+        <Grid Grid.Row="2" Margin="24,8,24,0" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <!-- The search box takes the free space up to 360px; whatever is left over goes to the spacer. -->
+                <ColumnDefinition Width="1000*" MaxWidth="360" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <views:FindBox x:Name="Finder" VerticalAlignment="Center" />
+            <CommandBar
+                Grid.Column="2"
+                VerticalAlignment="Center"
+                Background="Transparent"
+                DefaultLabelPosition="Right"
+                OverflowButtonVisibility="Collapsed">
+                <AppBarButton Click="Copy_Click" Icon="{h:FluentIcon Icon=Copy}" Label="Copy" />
+            </CommandBar>
+        </Grid>
+
+        <views:CodeBlock x:Name="Code" Grid.Row="3" Margin="24,8,24,16" />
+    </Grid>
+</Window>

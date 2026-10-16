@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SharePointSearchExplorer.Views.HttpDetailsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:h="using:SharePointSearchExplorer.Helpers"
+    xmlns:views="using:SharePointSearchExplorer.Views"
+    NavigationCacheMode="Required">
+
+    <!-- "Server Response": the last search's HTTP exchange (the original tool's Status, Raw and Debug tabs). Spacing follows the WinUI
+         guidelines: 24px page gutters, 16px between the tabs, the search box and the buttons, 12px above the code card. -->
+    <Grid Padding="24,16,24,16" ColumnSpacing="16" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <!-- The search box takes the free space up to 360px; whatever is left over goes to this spacer. -->
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="1000*" MaxWidth="360" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Page title: smaller than the Settings pages' titles, as the code block needs the room. -->
+        <TextBlock Grid.ColumnSpan="4" Margin="0,0,0,-4" Style="{StaticResource SubtitleTextBlockStyle}" Text="Server Response" />
+
+        <!-- Tabs on the left, in line with the buttons on the right (centred, so their text lines up). -->
+        <StackPanel
+            Grid.Row="1"
+            Margin="-4,0,0,0"
+            VerticalAlignment="Center"
+            AutomationProperties.Name="Server response tabs"
+            Orientation="Horizontal"
+            Spacing="8">
+            <RadioButton
+                Checked="Tab_Checked"
+                Content="HTTP Details"
+                GroupName="httpTabs"
+                IsChecked="True"
+                Style="{StaticResource UnderlineTabStyle}"
+                Tag="Details" />
+            <RadioButton
+                Checked="Tab_Checked"
+                Content="Full API Response"
+                GroupName="httpTabs"
+                Style="{StaticResource UnderlineTabStyle}"
+                Tag="Response" />
+            <RadioButton
+                Checked="Tab_Checked"
+                Content="Debug"
+                GroupName="httpTabs"
+                Style="{StaticResource UnderlineTabStyle}"
+                Tag="Debug" />
+        </StackPanel>
+
+        <views:FindBox x:Name="Finder" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" />
+
+        <CommandBar
+            Grid.Row="1"
+            Grid.Column="3"
+            VerticalAlignment="Center"
+            Background="Transparent"
+            DefaultLabelPosition="Right"
+            OverflowButtonVisibility="Collapsed">
+            <AppBarButton x:Name="CopyButton" Click="Copy_Click" Icon="{h:FluentIcon Icon=Copy}" Label="Copy" />
+            <AppBarButton
+                x:Name="PopOutButton"
+                Click="PopOut_Click"
+                Icon="{h:FluentIcon Icon=WindowNew}"
+                Label="Pop-Out"
+                ToolTipService.ToolTip="Open this text in its own window" />
+        </CommandBar>
+
+        <views:CodeBlock
+            x:Name="Code"
+            Grid.Row="2"
+            Grid.ColumnSpan="4"
+            PlaceholderText="Run a search to see its response details." />
+    </Grid>
+</Page>

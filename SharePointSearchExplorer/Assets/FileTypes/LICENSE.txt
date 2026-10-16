@@ -1,0 +1,14 @@
+File type icons in this folder
+
+These are Microsoft's Fluent UI file type icons ("Microsoft Office icons" / "Fabric icons"), downloaded
+unmodified from the Microsoft Fluent CDN:
+https://res.cdn.office.net/files/fabric-cdn-prod_20240129.001/assets/item-types/24/
+
+They are used under the Microsoft Fabric Assets License Agreement (https://aka.ms/fluentui-assets-license),
+which permits their use in an application that uses a Microsoft API to provide access to or interact with a
+Microsoft service (this app calls the SharePoint Search REST API), and specifically "in product experiences
+where file type icons are used to represent and/or launch Office files".
+
+Conditions that apply: the icons must not be altered, recoloured, animated or combined with other designs,
+used as logos or in marketing, or used in a way that implies the app is a Microsoft product.
+Microsoft retains all rights in the icons and may revoke the license.

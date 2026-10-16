@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="SharePointSearchExplorer.Views.ProfileDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:h="using:SharePointSearchExplorer.Helpers"
+    CloseButtonText="Cancel"
+    DefaultButton="Primary"
+    PrimaryButtonClick="ContentDialog_PrimaryButtonClick"
+    PrimaryButtonText="Save"
+    Style="{StaticResource DefaultContentDialogStyle}">
+
+    <ScrollViewer MinWidth="440" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="14">
+            <TextBlock
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="A profile is a SharePoint site plus the account used to search it. Switch between profiles from the profile button in the left rail."
+                TextWrapping="Wrap" />
+
+            <TextBox
+                x:Name="SiteUrlBox"
+                Header="SharePoint site URL"
+                InputScope="Url"
+                PlaceholderText="https://contoso.sharepoint.com/sites/intranet"
+                TextChanged="SiteUrlBox_TextChanged" />
+
+            <TextBox x:Name="NameBox" Header="Profile name" PlaceholderText="Defaults to the tenant name, e.g. contoso" />
+
+            <ComboBox
+                x:Name="AuthModeBox"
+                HorizontalAlignment="Stretch"
+                Header="Sign-in method"
+                SelectionChanged="AuthModeBox_SelectionChanged">
+                <ComboBoxItem Content="SharePoint Online – Microsoft 365 account" Tag="Browser" />
+                <ComboBoxItem Content="Windows account – SharePoint Server (on-premises)" Tag="Windows" />
+            </ComboBox>
+
+            <StackPanel x:Name="BrowserOptions" Spacing="14">
+                <InfoBar
+                    IconSource="{h:FluentIconSource Icon=Info}"
+                    IsClosable="False"
+                    IsOpen="True"
+                    Message="Same as the original tool's “SharePoint Online” method: a Microsoft sign-in window opens the first time, then you stay signed in. No app registration is needed."
+                    Severity="Informational" />
+                <Expander x:Name="AdvancedExpander" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Header="Advanced">
+                    <StackPanel Spacing="14">
+                        <TextBox
+                            x:Name="TenantBox"
+                            Header="Tenant (optional)"
+                            PlaceholderText="Worked out from the site URL" />
+                        <StackPanel Spacing="4">
+                            <TextBox
+                                x:Name="ClientIdBox"
+                                Header="App (client) ID (optional)"
+                                PlaceholderText="Leave empty to use the built-in SharePoint Online sign-in" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{StaticResource CaptionTextBlockStyle}"
+                                Text="Only if your organization gives you its own app registration (redirect URI http://localhost). Sign-in then uses your default web browser instead."
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+
+            <InfoBar x:Name="ErrorBar" IconSource="{h:FluentIconSource Icon=ErrorCircle}" IsClosable="False" Severity="Error" />
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

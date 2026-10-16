@@ -1,0 +1,545 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="SharePointSearchExplorer.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:h="using:SharePointSearchExplorer.Helpers"
+    xmlns:views="using:SharePointSearchExplorer.Views">
+
+    <Page.Resources>
+        <Style x:Key="GroupHeaderStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+            <Setter Property="Margin" Value="1,20,0,6" />
+        </Style>
+        <Style x:Key="CardStackStyle" TargetType="StackPanel">
+            <Setter Property="Spacing" Value="4" />
+        </Style>
+        <!-- The add, remove and clear buttons between the lists: always a box, filled with the accent colour
+             while the button can be used and with the disabled fill otherwise. -->
+        <Style x:Key="FavoritesMoveButtonStyle" TargetType="Button" BasedOn="{StaticResource AccentButtonStyle}">
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="MinWidth" Value="36" />
+            <Setter Property="MinHeight" Value="36" />
+        </Style>
+        <!-- The two lists of the Favorite properties sub-page: tall enough for all 12 favorites (40px rows)
+             under the card's title and counter, without scrolling. -->
+        <Style x:Key="FavoritesListCardStyle" TargetType="Grid">
+            <Setter Property="Height" Value="580" />
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorSecondaryBrush}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource ControlCornerRadius}" />
+        </Style>
+    </Page.Resources>
+
+    <!-- Windows 11 Settings layout: categories on the left, the selected category's settings on the right. -->
+    <NavigationView
+        x:Name="CategoryNav"
+        IsBackButtonVisible="Collapsed"
+        IsPaneToggleButtonVisible="False"
+        IsSettingsVisible="False"
+        IsTitleBarAutoPaddingEnabled="False"
+        OpenPaneLength="280"
+        PaneDisplayMode="Left"
+        ItemInvoked="CategoryNav_ItemInvoked"
+        SelectionChanged="CategoryNav_SelectionChanged">
+
+        <NavigationView.PaneHeader>
+            <Grid Margin="16,12,16,12" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <PersonPicture x:Name="ProfilePicture" Width="56" Height="56" />
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock x:Name="ProfileNameText" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        x:Name="ProfileAccountText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Grid>
+        </NavigationView.PaneHeader>
+
+        <NavigationView.MenuItems>
+            <NavigationViewItem Content="Search" Icon="{h:FluentIcon Icon=Search}" Tag="Search" />
+            <NavigationViewItem Content="Accounts" Icon="{h:FluentIcon Icon=PersonKey}" Tag="Accounts" />
+            <NavigationViewItem Content="Appearance" Icon="{h:FluentIcon Icon=PaintBrush}" Tag="Appearance" />
+            <NavigationViewItem Content="About" Icon="{h:FluentIcon Icon=Info}" Tag="About" />
+        </NavigationView.MenuItems>
+
+        <!-- Centred column, like Windows 11 Settings. Its width and left margin are set from the viewport in code
+             (see CenterContent): a MaxWidth panel with HorizontalAlignment="Center" inside the ScrollViewer
+             was laid out against a stale width after the window grew, pushing short categories off to the right. -->
+        <ScrollViewer
+            x:Name="ContentScroller"
+            HorizontalScrollBarVisibility="Disabled"
+            HorizontalScrollMode="Disabled"
+            SizeChanged="ContentScroller_SizeChanged">
+            <StackPanel x:Name="ContentPanel" Padding="36,20,36,40" HorizontalAlignment="Left">
+                <TextBlock x:Name="CategoryTitle" Margin="0,0,0,8" Style="{StaticResource TitleTextBlockStyle}" />
+                <!-- Replaces the title on a sub-page ("Search > Favorite properties"), sized like it; the first
+                     item goes back to the category. -->
+                <BreadcrumbBar
+                    x:Name="SubPageBreadcrumb"
+                    Margin="0,0,0,8"
+                    ItemClicked="SubPageBreadcrumb_ItemClicked"
+                    Visibility="Collapsed">
+                    <BreadcrumbBar.Resources>
+                        <x:Double x:Key="BreadcrumbBarItemThemeFontSize">28</x:Double>
+                        <x:Double x:Key="BreadcrumbBarChevronFontSize">16</x:Double>
+                        <FontWeight x:Key="BreadcrumbBarItemFontWeight">SemiBold</FontWeight>
+                        <Thickness x:Key="BreadcrumbBarChevronPadding">12,6,12,0</Thickness>
+                    </BreadcrumbBar.Resources>
+                </BreadcrumbBar>
+
+                <!-- ===== Search > Favorite properties (sub-page) ===== -->
+                <!-- One card (16px padding, like the settings cards) holds the page, so its controls read as a
+                     group; the two lists inside use the secondary card fill to stand out from it. -->
+                <StackPanel
+                    x:Name="FavoritesPanel"
+                    Margin="0,12,0,0"
+                    Padding="16"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource OverlayCornerRadius}"
+                    Spacing="16"
+                    Visibility="Collapsed">
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Choose up to 12 managed properties to show in the summary at the top of Result Details. Drag a favorite to change the order."
+                        TextWrapping="Wrap" />
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Left: the standard managed properties that aren't favorites yet. -->
+                        <Grid Padding="12" RowSpacing="8" Style="{StaticResource FavoritesListCardStyle}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Available properties" />
+                            <TextBox
+                                x:Name="AvailableFilterBox"
+                                Grid.Row="1"
+                                AutomationProperties.Name="Filter available properties"
+                                PlaceholderText="Filter available properties"
+                                TextChanged="AvailableFilterBox_TextChanged" />
+                            <ListView
+                                x:Name="AvailableList"
+                                Grid.Row="2"
+                                AutomationProperties.Name="Available properties"
+                                DoubleTapped="AvailableList_DoubleTapped"
+                                SelectionChanged="FavoriteLists_SelectionChanged"
+                                SelectionMode="Extended" />
+                        </Grid>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="8">
+                            <Button
+                                x:Name="AddFavoriteButton"
+                                AutomationProperties.Name="Add to favorites"
+                                Click="AddFavorite_Click"
+                                Style="{StaticResource FavoritesMoveButtonStyle}"
+                                ToolTipService.ToolTip="Add to favorites">
+                                <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="18" Glyph="{x:Bind h:FluentIcons.ArrowRight}" />
+                            </Button>
+                            <Button
+                                x:Name="RemoveFavoriteButton"
+                                AutomationProperties.Name="Remove from favorites"
+                                Click="RemoveFavorite_Click"
+                                Style="{StaticResource FavoritesMoveButtonStyle}"
+                                ToolTipService.ToolTip="Remove from favorites">
+                                <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="18" Glyph="{x:Bind h:FluentIcons.ArrowLeft}" />
+                            </Button>
+                            <Button
+                                x:Name="ClearFavoritesButton"
+                                AutomationProperties.Name="Remove all favorites"
+                                Click="ClearFavorites_Click"
+                                Style="{StaticResource FavoritesMoveButtonStyle}"
+                                ToolTipService.ToolTip="Remove all favorites">
+                                <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="18" Glyph="{x:Bind h:FluentIcons.Delete}" />
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Right: the favorites, in the order the summary shows them. -->
+                        <Grid Grid.Column="2" Padding="12" RowSpacing="8" Style="{StaticResource FavoritesListCardStyle}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Style="{StaticResource BodyStrongTextBlockStyle}" Text="Favorite properties" />
+                            <!-- As tall as the filter box opposite, so the two lists line up. -->
+                            <TextBlock
+                                x:Name="FavoriteSlotsText"
+                                Grid.Row="1"
+                                MinHeight="32"
+                                Padding="0,6,0,0"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            <ListView
+                                x:Name="FavoritesList"
+                                Grid.Row="2"
+                                AllowDrop="True"
+                                AutomationProperties.Name="Favorite properties"
+                                CanDragItems="True"
+                                CanReorderItems="True"
+                                DoubleTapped="FavoritesList_DoubleTapped"
+                                SelectionChanged="FavoriteLists_SelectionChanged"
+                                SelectionMode="Extended" />
+                        </Grid>
+                    </Grid>
+
+                    <!-- Right-aligned, with the "Favorites saved" note to the left of the buttons. -->
+                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
+                        <TextBlock
+                            x:Name="FavoritesStatusText"
+                            Margin="0,0,8,0"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <Button x:Name="SaveFavoritesButton" AutomationProperties.Name="Save Favorites" Click="SaveFavorites_Click" Style="{StaticResource AccentButtonStyle}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="16" Glyph="{x:Bind h:FluentIcons.Save}" />
+                                <TextBlock Text="Save Favorites" />
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="ResetFavoritesButton" AutomationProperties.Name="Reset to Default" Click="ResetFavorites_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="16" Glyph="{x:Bind h:FluentIcons.ArrowReset}" />
+                                <TextBlock Text="Reset to Default" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- ===== Search ===== -->
+                <StackPanel x:Name="SearchPanel" Style="{StaticResource CardStackStyle}">
+                    <TextBlock Style="{StaticResource GroupHeaderStyle}" Text="Advanced" />
+                    <views:SettingsCard
+                        Description="Show the Advanced Query Rules and Server Response pages in the navigation rail."
+                        Header="Advanced pages"
+                        Icon="SearchSettings">
+                        <views:SettingsCard.Action>
+                            <ToggleSwitch
+                                x:Name="AdvancedPagesToggle"
+                                AutomationProperties.Name="Advanced pages"
+                                OffContent="Off"
+                                OnContent="On"
+                                Toggled="AdvancedPagesToggle_Toggled" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+
+                    <TextBlock Style="{StaticResource GroupHeaderStyle}" Text="Results" />
+                    <views:SettingsCard
+                        x:Name="FavoritesCard"
+                        Click="FavoritesCard_Click"
+                        Description="Choose the managed properties shown in the summary at the top of Result Details."
+                        Header="Favorite properties"
+                        Icon="Star"
+                        IsClickEnabled="True" />
+                    <views:SettingsCard Description="How many results each search and each “Load more” returns." Header="Results per page" Icon="TextNumberListLtr">
+                        <views:SettingsCard.Action>
+                            <NumberBox
+                                x:Name="RowLimitBox"
+                                Width="160"
+                                LargeChange="50"
+                                Maximum="500"
+                                Minimum="1"
+                                SmallChange="10"
+                                SpinButtonPlacementMode="Inline"
+                                ValueChanged="RowLimitBox_ValueChanged" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                    <views:SettingsCard Description="Hide results that are near-duplicates of each other." Header="Trim duplicates" Icon="Cut">
+                        <views:SettingsCard.Action>
+                            <ToggleSwitch AutomationProperties.Name="Trim duplicates" IsOn="{x:Bind Settings.TrimDuplicates, Mode=TwoWay}" OffContent="Off" OnContent="On" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                    <views:SettingsCard
+                        Description="Which properties the Result Details table lists to start with. Use the table's Source column header to change it for the current session."
+                        Header="Default Property Filter"
+                        Icon="Filter">
+                        <views:SettingsCard.Action>
+                            <ComboBox
+                                x:Name="PropertySourceBox"
+                                MinWidth="200"
+                                AutomationProperties.Name="Default Property Filter"
+                                SelectionChanged="PropertySourceBox_SelectionChanged">
+                                <ComboBoxItem Content="All properties" Tag="" />
+                                <ComboBoxItem Content="Managed properties" Tag="Managed" />
+                                <ComboBoxItem Content="Crawled properties" Tag="Crawled" />
+                            </ComboBox>
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+
+                    <TextBlock Style="{StaticResource GroupHeaderStyle}" Text="Query box" />
+                    <views:SettingsCard Description="Open the list of recent queries when you select the empty query box." Header="Show recent queries" Icon="History">
+                        <views:SettingsCard.Action>
+                            <ToggleSwitch AutomationProperties.Name="Show recent queries" IsOn="{x:Bind Settings.ShowRecentQueriesOnFocus, Mode=TwoWay}" OffContent="Off" OnContent="On" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                    <views:SettingsCard
+                        Description="Point at a recent query in the query box's suggestions to show an X that removes it from your query history."
+                        Header="Allow deleting queries from the query box"
+                        Icon="Dismiss">
+                        <views:SettingsCard.Action>
+                            <ToggleSwitch
+                                x:Name="AllowQueryDeletionToggle"
+                                AutomationProperties.Name="Allow deleting queries from the query box"
+                                OffContent="Off"
+                                OnContent="On"
+                                Toggled="AllowQueryDeletionToggle_Toggled" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                    <views:SettingsCard
+                        Description="Ask you to confirm before a query is deleted from the query box."
+                        Header="Confirm before deleting a query"
+                        Icon="Warning">
+                        <views:SettingsCard.Action>
+                            <ToggleSwitch
+                                x:Name="ConfirmQueryDeletionToggle"
+                                AutomationProperties.Name="Confirm before deleting a query"
+                                OffContent="Off"
+                                OnContent="On"
+                                Toggled="ConfirmQueryDeletionToggle_Toggled" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                    <views:SettingsCard Description="When the app opens, fill the query box with the last query you ran." Header="Restore last query" Icon="ArrowClockwise">
+                        <views:SettingsCard.Action>
+                            <ToggleSwitch AutomationProperties.Name="Restore last query" IsOn="{x:Bind Settings.RestoreLastQuery, Mode=TwoWay}" OffContent="Off" OnContent="On" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+
+                    <TextBlock Style="{StaticResource GroupHeaderStyle}" Text="Copy and Paste" />
+                    <views:SettingsCard
+                        Description="Separates the name and value when you right-click a property and choose “Copy name and value”."
+                        Header="Name and value delimiter"
+                        Icon="TextDescription">
+                        <views:SettingsCard.Action>
+                            <ComboBox
+                                x:Name="PairDelimiterBox"
+                                MinWidth="200"
+                                AutomationProperties.Name="Name and value delimiter"
+                                SelectionChanged="DelimiterBox_SelectionChanged" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                    <views:SettingsCard
+                        Description="Separates the columns when you use a table's “Copy all” button. With comma or semicolon, values containing the delimiter are quoted so the result opens correctly in Excel."
+                        Header="Copy all delimiter"
+                        Icon="Copy">
+                        <views:SettingsCard.Action>
+                            <ComboBox
+                                x:Name="AllDelimiterBox"
+                                MinWidth="200"
+                                AutomationProperties.Name="Copy all delimiter"
+                                SelectionChanged="DelimiterBox_SelectionChanged" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                </StackPanel>
+
+                <!-- ===== Accounts ===== -->
+                <StackPanel x:Name="AccountsPanel" Style="{StaticResource CardStackStyle}" Visibility="Collapsed">
+                    <TextBlock Style="{StaticResource GroupHeaderStyle}" Text="Current profile" />
+                    <views:SettingsCard x:Name="CurrentProfileCard" Icon="Person">
+                        <views:SettingsCard.Action>
+                            <Button x:Name="EditProfileButton" Click="EditProfile_Click" Content="Edit profile" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                    <views:SettingsCard
+                        Description="Switch between profiles, change account or sign out from the profile button in the navigation rail."
+                        Header="Add another SharePoint site"
+                        Icon="Add">
+                        <views:SettingsCard.Action>
+                            <Button Click="AddProfile_Click" Content="Add profile" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+
+                    <TextBlock Style="{StaticResource GroupHeaderStyle}" Text="Sign-in" />
+                    <views:SettingsCard
+                        Description="SharePoint Online profiles sign in like the original tool's “SharePoint Online” method, so no app registration is needed. The sign-in window remembers your session and tokens are cached encrypted for your Windows account."
+                        Header="How sign-in works"
+                        Icon="Info" />
+                    <views:SettingsCard
+                        Description="Optional. Only if your organization provides its own Entra app registration; new profiles then sign in with your default browser."
+                        Header="Default app (client) ID for new profiles"
+                        Icon="Key">
+                        <views:SettingsCard.Action>
+                            <TextBox Width="320" PlaceholderText="Built-in SharePoint Online sign-in" Text="{x:Bind Settings.DefaultClientId, Mode=TwoWay}" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                </StackPanel>
+
+                <!-- ===== Appearance ===== -->
+                <StackPanel x:Name="AppearancePanel" Style="{StaticResource CardStackStyle}" Visibility="Collapsed">
+                    <TextBlock Style="{StaticResource GroupHeaderStyle}" Text="Theme" />
+                    <views:SettingsCard Description="Choose light or dark, or follow your Windows setting." Header="App theme" Icon="DarkTheme">
+                        <views:SettingsCard.Action>
+                            <ComboBox x:Name="ThemeBox" MinWidth="200" SelectionChanged="ThemeBox_SelectionChanged">
+                                <ComboBoxItem Content="Use system setting" Tag="Default" />
+                                <ComboBoxItem Content="Light" Tag="Light" />
+                                <ComboBoxItem Content="Dark" Tag="Dark" />
+                            </ComboBox>
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                    <views:SettingsCard Description="Use your Windows accent colour, or choose one of the Windows colours for this app." Header="Accent colour" Icon="Color">
+                        <views:SettingsCard.Action>
+                            <ComboBox
+                                x:Name="AccentModeBox"
+                                MinWidth="200"
+                                AutomationProperties.Name="Accent colour"
+                                SelectionChanged="AccentModeBox_SelectionChanged">
+                                <ComboBoxItem Content="Use Windows accent colour" />
+                                <ComboBoxItem Content="Custom" />
+                            </ComboBox>
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                    <!-- The Windows 11 Settings "Windows colors" grid, shown while a custom colour is chosen. -->
+                    <Border
+                        x:Name="AccentPalettePanel"
+                        Padding="52,12,16,16"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource ControlCornerRadius}"
+                        Visibility="Collapsed">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Windows colours" />
+                            <GridView
+                                x:Name="AccentGrid"
+                                AutomationProperties.Name="Windows colours"
+                                IsItemClickEnabled="False"
+                                ItemsSource="{x:Bind h:AccentColors.Palette}"
+                                SelectionChanged="AccentGrid_SelectionChanged"
+                                SelectionMode="Single">
+                                <GridView.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <ItemsWrapGrid MaximumRowsOrColumns="8" Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </GridView.ItemsPanel>
+                                <GridView.ItemTemplate>
+                                    <DataTemplate x:DataType="h:AccentSwatch">
+                                        <Border
+                                            Width="40"
+                                            Height="40"
+                                            AutomationProperties.Name="{x:Bind Name}"
+                                            Background="{x:Bind Brush}"
+                                            CornerRadius="4"
+                                            ToolTipService.ToolTip="{x:Bind Name}" />
+                                    </DataTemplate>
+                                </GridView.ItemTemplate>
+                            </GridView>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Style="{StaticResource GroupHeaderStyle}" Text="Word Wrap" />
+                    <views:SettingsCard
+                        Description="Wrap long text everywhere on the Search Results page: titles in the results list and values in the property tables (and their pop-out windows). When off, text stays on one line and is trimmed. This does not apply to code blocks, such as those on the Server Response page."
+                        Header="Search Results"
+                        Icon="TextWrap">
+                        <views:SettingsCard.Action>
+                            <ToggleSwitch x:Name="WordWrapToggle" AutomationProperties.Name="Word wrap on the Search Results page" OffContent="Off" OnContent="On" Toggled="WordWrapToggle_Toggled" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                    <views:SettingsCard
+                        x:Name="WrapCodeCard"
+                        Description="Wrap long lines in the large code blocks on the Server Response page (HTTP Details, Full API Response and Debug) and in their pop-out windows. When off, long lines stay on one line and the block scrolls sideways. Only enabled when Search › Advanced pages is turned on."
+                        Header="Server Response code blocks"
+                        Icon="DocumentChevronDouble">
+                        <views:SettingsCard.Action>
+                            <ToggleSwitch x:Name="WrapCodeToggle" AutomationProperties.Name="Word wrap in Server Response code blocks" OffContent="Off" OnContent="On" Toggled="WrapCodeToggle_Toggled" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+
+                    <TextBlock Style="{StaticResource GroupHeaderStyle}" Text="Primary results" />
+                    <views:SettingsCard
+                        Description="Comfortable shows each result's icon, title and last modified date. Dense shows the icon and title in shorter rows, so more results fit on screen."
+                        Header="Result density"
+                        Icon="TextDensity">
+                        <views:SettingsCard.Action>
+                            <ComboBox
+                                x:Name="DensityBox"
+                                MinWidth="200"
+                                AutomationProperties.Name="Result density"
+                                SelectionChanged="DensityBox_SelectionChanged">
+                                <ComboBoxItem Content="Comfortable" Tag="Comfortable" />
+                                <ComboBoxItem Content="Dense" Tag="Dense" />
+                            </ComboBox>
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                    <views:SettingsCard
+                        Description="Outline icons match the rest of the app. Colourful icons are the Microsoft file type icons used in SharePoint and OneDrive."
+                        Header="Result icons"
+                        Icon="Image">
+                        <views:SettingsCard.Action>
+                            <ComboBox
+                                x:Name="FileIconStyleBox"
+                                MinWidth="200"
+                                AutomationProperties.Name="Result icons"
+                                SelectionChanged="FileIconStyleBox_SelectionChanged">
+                                <ComboBoxItem Content="Outline" />
+                                <ComboBoxItem Content="Colourful" />
+                            </ComboBox>
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+
+                    <TextBlock Style="{StaticResource GroupHeaderStyle}" Text="Property tables" />
+                    <views:SettingsCard
+                        Description="List properties that have no value in the Result Details table. Use “Show empty” or “Hide empty” above the table to change it for the current session."
+                        Header="Show empty properties"
+                        Icon="Eye">
+                        <views:SettingsCard.Action>
+                            <ToggleSwitch
+                                x:Name="ShowEmptyToggle"
+                                AutomationProperties.Name="Show empty properties"
+                                OffContent="Off"
+                                OnContent="On"
+                                Toggled="ShowEmptyToggle_Toggled" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                </StackPanel>
+
+                <!-- ===== About ===== -->
+                <StackPanel x:Name="AboutPanel" Style="{StaticResource CardStackStyle}" Visibility="Collapsed">
+                    <TextBlock Style="{StaticResource GroupHeaderStyle}" Text="This app" />
+                    <views:SettingsCard
+                        x:Name="VersionCard"
+                        Description="A WinUI 3 app for exploring SharePoint search results and managed properties, using the SharePoint Search REST API."
+                        Icon="DatabaseSearch" />
+                    <views:SettingsCard x:Name="DataFolderCard" Header="Settings and sign-in data" Icon="FolderOpen">
+                        <views:SettingsCard.Action>
+                            <Button Click="OpenDataFolder_Click" Content="Open folder" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                    <views:SettingsCard Description="Fluent UI System Icons by Microsoft, MIT license." Header="Icons" Icon="Info">
+                        <views:SettingsCard.Action>
+                            <HyperlinkButton Content="View on GitHub" NavigateUri="https://github.com/microsoft/fluentui-system-icons" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                    <views:SettingsCard
+                        Description="Inspired by the SharePoint Search Query Tool from Microsoft 365 &amp; Power Platform Community (PnP)."
+                        Header="Original SharePoint Search Query Tool"
+                        Icon="Info">
+                        <views:SettingsCard.Action>
+                            <HyperlinkButton Content="View on GitHub" NavigateUri="https://github.com/pnp/PnP-Tools/tree/master/Solutions/SharePoint.Search.QueryTool" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+
+                    <TextBlock Style="{StaticResource GroupHeaderStyle}" Text="Reset" />
+                    <views:SettingsCard
+                        Description="Removes all profiles and signs out of them, clears query history and restores every setting to its default."
+                        Header="Reset app to defaults"
+                        Icon="ArrowReset">
+                        <views:SettingsCard.Action>
+                            <Button Click="ResetApp_Click" Content="Reset" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </NavigationView>
+</Page>

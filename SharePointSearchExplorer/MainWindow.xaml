@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="SharePointSearchExplorer.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:h="using:SharePointSearchExplorer.Helpers"
+    mc:Ignorable="d"
+    Title="SharePoint Search Explorer">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Title bar: app icon, query box and search button (wireframe top bar). -->
+        <TitleBar
+            x:Name="AppTitleBar"
+            Height="56"
+            IsBackButtonVisible="False"
+            IsPaneToggleButtonVisible="False">
+            <!-- App icon and name in the left header rather than IconSource/Title, which TitleBar fixes at 16px. -->
+            <TitleBar.LeftHeader>
+                <StackPanel Margin="16,0,0,0" Orientation="Horizontal" Spacing="12">
+                    <Image
+                        Width="24"
+                        Height="24"
+                        VerticalAlignment="Center"
+                        AutomationProperties.AccessibilityView="Raw"
+                        Source="ms-appx:///Assets/AppIcon.png" />
+                    <TextBlock
+                        VerticalAlignment="Center"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="SharePoint Search Explorer" />
+                </StackPanel>
+            </TitleBar.LeftHeader>
+            <TitleBar.Content>
+                <Grid x:Name="QueryBar" Width="640" ColumnSpacing="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <AutoSuggestBox
+                        x:Name="QueryBox"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="Query text"
+                        PlaceholderText="Query text"
+                        QuerySubmitted="QueryBox_QuerySubmitted"
+                        Text="{x:Bind Search.QueryText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        TextChanged="QueryBox_TextChanged"
+                        GotFocus="QueryBox_GotFocus">
+                        <AutoSuggestBox.ItemContainerStyle>
+                            <!-- Stretch each row so the remove button sits at its right edge. -->
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </AutoSuggestBox.ItemContainerStyle>
+                        <AutoSuggestBox.ItemTemplate>
+                            <!-- A recent query, with an X on hover to remove it from the history (like Outlook's To box).
+                                 The X is shown in code (Suggestion_PointerEntered) when Settings allows it. -->
+                            <DataTemplate x:DataType="x:String">
+                                <Grid
+                                    Background="Transparent"
+                                    ColumnSpacing="8"
+                                    PointerEntered="Suggestion_PointerEntered"
+                                    PointerExited="Suggestion_PointerExited"
+                                    PointerCanceled="Suggestion_PointerExited">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock VerticalAlignment="Center" Text="{x:Bind}" TextTrimming="CharacterEllipsis" />
+                                    <Button
+                                        Grid.Column="1"
+                                        Width="24"
+                                        Height="24"
+                                        Padding="0"
+                                        VerticalAlignment="Center"
+                                        AllowFocusOnInteraction="False"
+                                        AutomationProperties.Name="Remove from history"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Click="RemoveSuggestion_Click"
+                                        IsHitTestVisible="False"
+                                        IsTabStop="False"
+                                        Opacity="0"
+                                        Tag="{x:Bind}"
+                                        ToolTipService.ToolTip="Remove from history">
+                                        <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="12" Glyph="{x:Bind h:FluentIcons.Dismiss}" />
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </AutoSuggestBox.ItemTemplate>
+                    </AutoSuggestBox>
+                    <Button
+                        x:Name="SearchButton"
+                        Grid.Column="1"
+                        Height="32"
+                        MinWidth="44"
+                        VerticalAlignment="Center"
+                        AutomationProperties.Name="{x:Bind SearchButtonLabel(Search.IsBusy), Mode=OneWay}"
+                        Click="SearchButton_Click"
+                        Style="{StaticResource AccentButtonStyle}"
+                        ToolTipService.ToolTip="{x:Bind SearchButtonLabel(Search.IsBusy), Mode=OneWay}">
+                        <FontIcon FontFamily="{StaticResource FluentIconsFont}" FontSize="18" Glyph="{x:Bind SearchButtonGlyph(Search.IsBusy), Mode=OneWay}" />
+                    </Button>
+                </Grid>
+            </TitleBar.Content>
+        </TitleBar>
+
+        <!-- Standard NavigationView, default (Auto) PaneDisplayMode: expanded when wide, compact rail when narrower. -->
+        <NavigationView
+            x:Name="NavView"
+            Grid.Row="1"
+            IsBackButtonVisible="Collapsed"
+            IsPaneOpen="False"
+            IsSettingsVisible="False"
+            IsTitleBarAutoPaddingEnabled="False"
+            ItemInvoked="NavView_ItemInvoked"
+            OpenPaneLength="260"
+            PaneToggleButtonStyle="{StaticResource FluentPaneToggleButtonStyle}">
+            <NavigationView.MenuItems>
+                <NavigationViewItem
+                    x:Name="SearchNavItem"
+                    Content="Search Results"
+                    Icon="{h:FluentIcon Icon=Search}"
+                    Tag="search" />
+                <NavigationViewItem
+                    x:Name="AdvancedSearchNavItem"
+                    Content="Advanced Query Rules"
+                    Icon="{h:FluentIcon Icon=SearchSettings}"
+                    Tag="advanced" />
+                <NavigationViewItem
+                    x:Name="HistoryNavItem"
+                    Content="Query History"
+                    Icon="{h:FluentIcon Icon=History}"
+                    Tag="history" />
+            </NavigationView.MenuItems>
+            <NavigationView.FooterMenuItems>
+                <!-- Server Response sits at the bottom of the pane, just above the divider. -->
+                <NavigationViewItem
+                    x:Name="HttpDetailsNavItem"
+                    Content="Server Response"
+                    Icon="{h:FluentIcon Icon=DocumentChevronDouble}"
+                    Tag="http" />
+                <!-- Divider above the profile button. Inset 12px each side, so the line stops short of the pane
+                     edges (and stays visible in the compact rail). -->
+                <NavigationViewItemSeparator Margin="12,0" />
+                <NavigationViewItem
+                    x:Name="ProfileNavItem"
+                    AutomationProperties.Name="Profile"
+                    Icon="{h:FluentIcon Icon=Person}"
+                    SelectsOnInvoked="False"
+                    Tag="profile">
+                    <NavigationViewItem.InfoBadge>
+                        <!-- Small corner badge: green check when signed in, yellow alert when not. -->
+                        <InfoBadge
+                            x:Name="ProfileBadge"
+                            Width="12"
+                            Height="12"
+                            MinWidth="12"
+                            MinHeight="12"
+                            Margin="0,3,1,0"
+                            Padding="0"
+                            Style="{StaticResource CautionIconInfoBadgeStyle}" />
+                    </NavigationViewItem.InfoBadge>
+                </NavigationViewItem>
+                <NavigationViewItem
+                    x:Name="SettingsNavItem"
+                    Content="Settings"
+                    Icon="{h:FluentIcon Icon=Settings}"
+                    Tag="settings" />
+            </NavigationView.FooterMenuItems>
+
+            <Frame x:Name="ContentFrame" />
+        </NavigationView>
+    </Grid>
+</Window>
