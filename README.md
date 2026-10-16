@@ -2,7 +2,7 @@
 Reimplementation of the PnP SharePoint Search Query tool in C# and WinUI 3. 
 
 > [!IMPORTANT]
-> This application was Vibe-Coded. If this is disagreeable to you, please proceed no further. 
+> **This application was "vibecoded." If this is disagreeable to you, please proceed no further.**
 
 ## About
 In my day-to-day work with SharePoint, I very frequently use the venerable [SharePoint Search Query Tool (SSQT)](https://github.com/pnp/PnP-Tools/tree/master/Solutions/SharePoint.Search.QueryTool). However, I started to have issues that caused friction when using the application. Namely, I had to sign-in each time I needed to run a query, and the properties windows would often quit unexpexctedly. I've been dabling with vibecoding certain utilities for my document management needs, so I figured I would try supervising a rebuild of a new version of the SSQT. 
