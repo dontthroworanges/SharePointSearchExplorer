@@ -70,6 +70,11 @@ public sealed class AuthService
     public async Task<string> GetAccessTokenAsync(
         ConnectionProfile profile, bool allowInteractive, bool chooseAccount = false, CancellationToken ct = default)
     {
+        if (DemoMode.IsEnabled)
+        {
+            profile.IsSignedIn = true;
+            return "demo-access-token";
+        }
         await _gate.WaitAsync(ct);
         try
         {

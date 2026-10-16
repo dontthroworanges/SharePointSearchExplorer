@@ -18,6 +18,7 @@ public sealed class SettingsStore
     /// </summary>
     private static string ResolveDataFolder()
     {
+        if (DemoMode.IsEnabled) return DemoMode.DataFolder;
         var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var folder = Path.Combine(root, "SharePointSearchExplorer");
         if (Directory.Exists(folder)) return folder;
@@ -55,6 +56,7 @@ public sealed class SettingsStore
 
     public static SettingsStore Load()
     {
+        if (DemoMode.IsEnabled) return new SettingsStore(DemoMode.CreateSettings());
         try
         {
             if (File.Exists(SettingsPath))

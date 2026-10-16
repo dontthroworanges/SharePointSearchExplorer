@@ -325,7 +325,7 @@ public sealed class SearchService
             handler.PreAuthenticate = true;
         }
 
-        var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(100) };
+        var client = new HttpClient(DemoMode.IsEnabled ? DemoMode.CreateHandler() : handler) { Timeout = TimeSpan.FromSeconds(100) };
         client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
         return client;
     }
