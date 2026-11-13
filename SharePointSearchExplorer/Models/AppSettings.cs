@@ -67,4 +67,10 @@ public sealed class AppSettings
     public bool RestoreLastQuery { get; set; }
 
     public List<string> History { get; set; } = new();
+
+    /// <summary>
+    /// At startup, check GitHub for a newer release and download it in the background; the user is asked before
+    /// it's installed.
+    /// </summary>
+    public bool CheckForUpdatesAtStartup { get; set; } = true;
 }

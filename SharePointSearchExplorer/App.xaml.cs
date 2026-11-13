@@ -28,6 +28,10 @@ public partial class App : Application
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         Settings = SettingsStore.Load();
+        // Removes the previous .exe an update renamed out of the way, and installed downloads.
+        UpdateService.CleanUpAfterUpdate();
+        // If the .exe has moved, keep its Start menu shortcut pointing at this one.
+        StartMenuShortcut.KeepCurrent();
         Helpers.DisplayOptions.Current.WordWrap = Settings.Data.WordWrap;
         Helpers.DisplayOptions.Current.WrapCodeBlocks = Settings.Data.WrapCodeBlocks;
         Helpers.DisplayOptions.Current.UseFileTypeIcons = Settings.Data.UseFileTypeIcons;

@@ -72,6 +72,7 @@ public sealed partial class MainWindow : Window
 
     private async void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
+        if (App.Settings.Data.CheckForUpdatesAtStartup) _ = CheckForUpdatesAtStartupAsync();
         if (App.Settings.CurrentProfile == null)
         {
             // First run: ask for a site to connect to.
@@ -111,6 +112,143 @@ public sealed partial class MainWindow : Window
         AccentColors.Refresh(RootGrid);
         PropertiesWindow.RefreshAccentColorForAll();
         CodeWindow.RefreshAccentColorForAll();
+    }
+
+    #endregion
+
+    #region Updates
+
+    /// <summary>
+    /// Checks GitHub in the background; a newer version is downloaded, then offered. Quiet when up to date or
+    /// offline: a failed check shows in Settings › About, not as an error over the search results.
+    /// </summary>
+    private async Task CheckForUpdatesAtStartupAsync()
+    {
+        UpdateInfo? update;
+        try
+        {
+            update = await UpdateService.CheckAndDownloadAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Update check failed: {ex.Message}");
+            return;
+        }
+        if (update != null) await OfferUpdateAsync(update);
+    }
+
+    /// <summary>
+    /// Asks whether to install a downloaded update now. Installing replaces the .exe the app runs from and
+    /// restarts it. While another dialog is open (e.g. the first-run profile dialog), the offer waits in a
+    /// notice at the bottom of the window instead of interrupting it.
+    /// </summary>
+    public async Task OfferUpdateAsync(UpdateInfo update)
+    {
+        string version = update.Version.ToString(3);
+        if (_dialogOpen)
+        {
+            ShowReadyToInstall(update);
+            return;
+        }
+
+        var content = new StackPanel { Spacing = 12 };
+        content.Children.Add(new TextBlock
+        {
+            Text = $"Version {version} has been downloaded (you have {UpdateService.CurrentVersion.ToString(3)}). " +
+                   "The app will close, replace its .exe with the new version and start again.",
+            TextWrapping = TextWrapping.Wrap,
+        });
+        if (!string.IsNullOrWhiteSpace(update.Notes))
+        {
+            content.Children.Add(new TextBlock { Text = "What's new", Style = (Style)Application.Current.Resources["BodyStrongTextBlockStyle"] });
+            content.Children.Add(new ScrollViewer
+            {
+                MaxHeight = 220,
+                Content = new TextBlock { Text = update.Notes.Trim(), TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true },
+            });
+        }
+        content.Children.Add(new HyperlinkButton
+        {
+            Content = "View the release on GitHub",
+            NavigateUri = new Uri(update.ReleaseUrl),
+            Padding = new Thickness(0),
+        });
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = RootGrid.XamlRoot,
+            RequestedTheme = RootGrid.ActualTheme,
+            Title = $"Update to version {version}?",
+            Content = content,
+            PrimaryButtonText = "Restart and update",
+            CloseButtonText = "Later",
+            DefaultButton = ContentDialogButton.Primary,
+        };
+
+        ContentDialogResult result;
+        _dialogOpen = true;
+        try
+        {
+            result = await dialog.ShowAsync();
+        }
+        catch (Exception)
+        {
+            // A dialog that doesn't set _dialogOpen is open (WinUI allows only one at a time).
+            ShowReadyToInstall(update);
+            return;
+        }
+        finally
+        {
+            _dialogOpen = false;
+        }
+        if (result == ContentDialogResult.Primary) InstallUpdate(update);
+    }
+
+    private void ShowReadyToInstall(UpdateInfo update)
+    {
+        var install = new Button { Content = "Restart and update" };
+        install.Click += (_, _) => InstallUpdate(update);
+        ShowNotice("Update", $"Version {update.Version.ToString(3)} has been downloaded and is ready to install.", InfoBarSeverity.Informational, install);
+    }
+
+    private void InstallUpdate(UpdateInfo update)
+    {
+        UpdateInfoBar.IsOpen = false;
+        // The new version starts before this one closes, so save the settings it will read now.
+        App.Settings.Save();
+        try
+        {
+            if (!UpdateService.Install(update))
+            {
+                ShowNotice("Update", "The update wasn't installed: Windows needs administrator permission to replace the app in its folder.", InfoBarSeverity.Warning);
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowNotice("Update", $"Couldn't install the update: {ex.Message}", InfoBarSeverity.Error);
+            return;
+        }
+
+        // The new version has started; close this one (Closed also closes the Properties and code windows).
+        Close();
+        Application.Current.Exit();
+    }
+
+    /// <summary>Shows a notice (about updates or the Start menu shortcut) at the bottom right of the window, with an optional action button.</summary>
+    public void ShowNotice(string title, string message, InfoBarSeverity severity, ButtonBase? action = null)
+    {
+        UpdateInfoBar.Title = title;
+        UpdateInfoBar.Message = message;
+        UpdateInfoBar.Severity = severity;
+        UpdateInfoBar.IconSource = FluentIcons.CreateSource(severity switch
+        {
+            InfoBarSeverity.Error => FluentIcons.ErrorCircle,
+            InfoBarSeverity.Warning => FluentIcons.Warning,
+            _ => FluentIcons.Info,
+        });
+        UpdateInfoBar.ActionButton = action;
+        UpdateInfoBar.IsOpen = true;
     }
 
     #endregion

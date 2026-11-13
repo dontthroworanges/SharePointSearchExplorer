@@ -510,6 +510,14 @@
                         x:Name="VersionCard"
                         Description="A WinUI 3 app for exploring SharePoint search results and managed properties, using the SharePoint Search REST API."
                         Icon="DatabaseSearch" />
+                    <views:SettingsCard
+                        Description="github.com/dontthroworanges/SharePointSearchExplorer"
+                        Header="Source code, releases and issues"
+                        Icon="Code">
+                        <views:SettingsCard.Action>
+                            <HyperlinkButton Content="View on GitHub" NavigateUri="https://github.com/dontthroworanges/SharePointSearchExplorer" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
                     <views:SettingsCard x:Name="DataFolderCard" Header="Settings and sign-in data" Icon="FolderOpen">
                         <views:SettingsCard.Action>
                             <Button Click="OpenDataFolder_Click" Content="Open folder" />
@@ -526,6 +534,50 @@
                         Icon="Info">
                         <views:SettingsCard.Action>
                             <HyperlinkButton Content="View on GitHub" NavigateUri="https://github.com/pnp/PnP-Tools/tree/master/Solutions/SharePoint.Search.QueryTool" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+
+                    <TextBlock Style="{StaticResource GroupHeaderStyle}" Text="Installation" />
+                    <views:SettingsCard
+                        x:Name="StartMenuCard"
+                        Header="Show in the Start menu"
+                        Icon="Open">
+                        <views:SettingsCard.Action>
+                            <ToggleSwitch
+                                x:Name="StartMenuSwitch"
+                                AutomationProperties.Name="Show in the Start menu"
+                                OffContent="Off"
+                                OnContent="On"
+                                Toggled="StartMenuSwitch_Toggled" />
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+
+                    <TextBlock Style="{StaticResource GroupHeaderStyle}" Text="Updates" />
+                    <!-- Description and button follow UpdateService's state (see UpdateUpdateCard). -->
+                    <views:SettingsCard x:Name="UpdateCard" Header="Check for updates" Icon="ArrowClockwise">
+                        <views:SettingsCard.Action>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <ProgressRing
+                                    x:Name="UpdateProgressRing"
+                                    Width="20"
+                                    Height="20"
+                                    IsActive="False"
+                                    Visibility="Collapsed" />
+                                <Button x:Name="UpdateButton" Click="UpdateButton_Click" Content="Check for updates" />
+                            </StackPanel>
+                        </views:SettingsCard.Action>
+                    </views:SettingsCard>
+                    <views:SettingsCard
+                        Description="When the app starts, check GitHub for a newer release and download it in the background. You're asked before it's installed."
+                        Header="Check for updates automatically"
+                        Icon="ArrowClockwise">
+                        <views:SettingsCard.Action>
+                            <ToggleSwitch
+                                x:Name="AutoUpdateSwitch"
+                                AutomationProperties.Name="Check for updates automatically"
+                                OffContent="Off"
+                                OnContent="On"
+                                Toggled="AutoUpdateSwitch_Toggled" />
                         </views:SettingsCard.Action>
                     </views:SettingsCard>
 

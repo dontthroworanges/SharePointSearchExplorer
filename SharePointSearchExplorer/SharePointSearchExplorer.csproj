@@ -22,7 +22,8 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <EnableMsixTooling>true</EnableMsixTooling>
 
-    <Version>1.0.0</Version>
+    <!-- Release tags on GitHub are "v" + this (e.g. v1.1.0); the in-app update check compares the two. -->
+    <Version>1.1.0</Version>
     <Product>SharePoint Search Explorer</Product>
     <AssemblyTitle>SharePoint Search Explorer</AssemblyTitle>
     <Description>A WinUI 3 client for the SharePoint Search REST API.</Description>

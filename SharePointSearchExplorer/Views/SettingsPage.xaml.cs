@@ -41,15 +41,22 @@ public sealed partial class SettingsPage : Page
         FillDelimiterBox(AllDelimiterBox, Settings.CopyAllDelimiter);
         VersionCard.Header = $"SharePoint Search Explorer {Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
         DataFolderCard.Description = SettingsStore.DataFolder;
+        AutoUpdateSwitch.IsOn = Settings.CheckForUpdatesAtStartup;
+        StartMenuSwitch.IsOn = StartMenuShortcut.Exists;
+        StartMenuCard.Description =
+            $"Add a shortcut to this app to your Start menu (for your account only, no admin rights needed). It follows the app when it updates itself. Runs {UpdateService.ExecutablePath}";
         UpdateProfile();
+        UpdateUpdateCard();
 
         CategoryNav.SelectedItem = CategoryNav.MenuItems[0];
         App.Settings.CurrentProfileChanged += OnCurrentProfileChanged;
+        UpdateService.StateChanged += OnUpdateStateChanged;
 
         // Text fields bind TwoWay straight into AppSettings; persist when leaving the page.
         Unloaded += (_, _) =>
         {
             App.Settings.CurrentProfileChanged -= OnCurrentProfileChanged;
+            UpdateService.StateChanged -= OnUpdateStateChanged;
             WatchProfile(null);
             App.Settings.Save();
         };
@@ -410,6 +417,77 @@ public sealed partial class SettingsPage : Page
         Helpers.DisplayOptions.Current.DenseResults = density == "Dense";
         App.Settings.Save();
     }
+
+    #region Installation and updates
+
+    // Raised on a background thread while a check or download runs.
+    private void OnUpdateStateChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(UpdateUpdateCard);
+
+    /// <summary>Shows the update check's progress and result, whether it started here or at startup.</summary>
+    private void UpdateUpdateCard()
+    {
+        string current = UpdateService.CurrentVersion.ToString(3);
+        string? available = UpdateService.AvailableVersion?.ToString(3);
+        var state = UpdateService.State;
+        bool working = state is UpdateState.Checking or UpdateState.Downloading;
+
+        UpdateCard.Description = state switch
+        {
+            UpdateState.Checking => "Checking GitHub for a newer version…",
+            UpdateState.Downloading => $"Downloading version {available}… {UpdateService.DownloadPercent}%",
+            UpdateState.Ready => $"Version {available} is downloaded and ready to install. You have {current}.",
+            UpdateState.UpToDate => $"You're up to date (version {current}).",
+            UpdateState.Failed => UpdateService.LastError ?? "Couldn't check for updates.",
+            _ => $"You have version {current}. Newer releases are downloaded from GitHub and replace this app's .exe.",
+        };
+        UpdateButton.Content = state == UpdateState.Ready ? "Install and restart" : "Check for updates";
+        UpdateButton.IsEnabled = !working;
+        UpdateProgressRing.IsActive = working;
+        UpdateProgressRing.Visibility = Show(working);
+    }
+
+    private async void UpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        var update = UpdateService.ReadyUpdate;
+        if (UpdateService.State != UpdateState.Ready || update == null)
+        {
+            try
+            {
+                update = await UpdateService.CheckAndDownloadAsync();
+            }
+            catch (UpdateException)
+            {
+                return; // shown on the card
+            }
+        }
+        if (update != null) await App.MainWindow.OfferUpdateAsync(update);
+    }
+
+    private void StartMenuSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        try
+        {
+            if (StartMenuSwitch.IsOn) StartMenuShortcut.Create();
+            else StartMenuShortcut.Remove();
+        }
+        catch (Exception ex)
+        {
+            App.MainWindow.ShowNotice("Start menu", $"Couldn't {(StartMenuSwitch.IsOn ? "add" : "remove")} the Start menu shortcut: {ex.Message}", InfoBarSeverity.Error);
+            _loading = true;
+            StartMenuSwitch.IsOn = StartMenuShortcut.Exists;
+            _loading = false;
+        }
+    }
+
+    private void AutoUpdateSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        Settings.CheckForUpdatesAtStartup = AutoUpdateSwitch.IsOn;
+        App.Settings.Save();
+    }
+
+    #endregion
 
     private async void ResetApp_Click(object sender, RoutedEventArgs e)
     {
