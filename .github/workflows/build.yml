@@ -1,0 +1,98 @@
+# CI/CD for SharePoint Search Explorer.
+#
+#   Push to main / open a pull request  ->  build the single-file .exe and keep it as a downloadable artifact (CI)
+#   Push a tag like v1.3.0              ->  the same build, then a GitHub release with the .exe attached (CD)
+#
+# The app's update checker reads the latest release, so publishing a release here is what ships an update to users.
+
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # adds a "Run workflow" button on the Actions tab
+
+# A newer push to the same branch cancels a build that is still running for an older one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PROJECT: SharePointSearchExplorer/SharePointSearchExplorer.csproj
+  ARTIFACT: SharePointSearchExplorer-win-x64
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v5
+
+      - name: Install the .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      # The update checker compares the release tag with the version built into the .exe. If they differed, the app
+      # would offer the same "update" forever, so a tag that doesn't match <Version> in the csproj stops the release.
+      - name: Check the tag matches the csproj version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content $env:PROJECT)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          $tag = $env:GITHUB_REF_NAME                      # e.g. v1.3.0 or v1.3.0-beta.1
+          $tagVersion = ($tag -replace '^[vV]', '') -split '[-+]' | Select-Object -First 1
+          if ($tagVersion -ne $version) {
+            Write-Output "::error::Tag $tag doesn't match <Version>$version</Version> in $env:PROJECT. Bump the version, commit, and tag v$version."
+            exit 1
+          }
+          Write-Output "Tag $tag matches version $version."
+
+      # Same command as the VS Code "publish" task and the README.
+      - name: Publish the single-file .exe
+        run: >
+          dotnet publish ${{ env.PROJECT }}
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
+          -o publish/win-x64
+
+      - name: Upload the .exe as a build artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ env.ARTIFACT }}
+          path: publish/win-x64/SharePointSearchExplorer.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # needed to create the release
+    steps:
+      - name: Download the .exe from the build job
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ env.ARTIFACT }}
+
+      # The asset keeps the name SharePointSearchExplorer.exe: an update saves the new .exe under the release
+      # file's name, and a WinUI app with a different name can't find its resources.
+      # Tags with a suffix (v1.3.0-beta.1) become pre-releases, which the in-app update check ignores.
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then prerelease="--prerelease"; fi
+          gh release create "$GITHUB_REF_NAME" SharePointSearchExplorer.exe \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            $prerelease

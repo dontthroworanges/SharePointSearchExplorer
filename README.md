@@ -24,17 +24,35 @@ tag (e.g. `v1.1.0`) is newer than the app's `<Version>`, the release's `.exe` is
 Installing renames the running `.exe` to `.exe.old`, puts the new one in its place and restarts; the next start removes
 the `.old` file. If the app's folder needs admin rights, Windows asks for them.
 
-To publish a release, bump `<Version>` in the csproj, then publish the single-file `.exe` (also the VS Code `publish`
-task):
+## Continuous integration and releases
+[![Build](https://github.com/dontthroworanges/SharePointSearchExplorer/actions/workflows/build.yml/badge.svg)](https://github.com/dontthroworanges/SharePointSearchExplorer/actions/workflows/build.yml)
+
+GitHub Actions ([`.github/workflows/build.yml`](.github/workflows/build.yml)) builds the single-file `.exe` on every
+push to `main` and every pull request. Each run's `.exe` can be downloaded from the run's **Artifacts** section on the
+Actions tab for 14 days.
+
+To publish a release:
+
+1. Bump `<Version>` in the csproj (e.g. `1.2.0`) and commit it to `main`.
+2. Tag that commit `v<Version>` and push the tag:
+   ```
+   git tag v1.2.0
+   git push origin v1.2.0
+   ```
+
+The workflow builds the `.exe`, checks the tag matches `<Version>` (it stops if not), and creates a GitHub release with
+`SharePointSearchExplorer.exe` attached and notes generated from the commits. Installed copies pick it up on their
+next update check. A tag with a suffix, such as `v1.2.0-beta.1`, makes a pre-release, which the update check ignores.
+
+To build the same `.exe` locally (also the VS Code `publish` task):
 
 ```
 dotnet publish SharePointSearchExplorer/SharePointSearchExplorer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o publish/win-x64
 ```
 
-This produces `publish/win-x64/SharePointSearchExplorer.exe`. Attach it to a GitHub release tagged `v<Version>`
-(drafts and pre-releases are ignored), keeping its file name: an update saves the new `.exe` under the release file's
-name, in place of the running one. If you publish more than one architecture, include `x64`, `x86` or `arm64` in each
-asset's name.
+This produces `publish/win-x64/SharePointSearchExplorer.exe`. If you attach it to a release by hand, keep its file
+name: an update saves the new `.exe` under the release file's name, in place of the running one. If you publish more
+than one architecture, include `x64`, `x86` or `arm64` in each asset's name.
 
 ## Install options
 The app is a single portable `.exe` that runs from any folder, with nothing to install. To add it to the Start menu,
